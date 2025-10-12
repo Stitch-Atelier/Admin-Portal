@@ -1,6 +1,7 @@
 import { useState } from "react";
 import useUserStore from "../../store/user";
 import { LoginAdmin } from "../services/requests";
+import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
 const Login = () => {
@@ -15,11 +16,14 @@ const Login = () => {
     //  Call Login API
     const { response, status } = await LoginAdmin(mobile);
 
-    if (status === 200) {
+    if (status === 200 && response?.user?.role === "admin") {
       setUser(response);
+      toast.success("Login Successful!");
 
       // Redirect to dashboard
-      navigate("/dashboard");
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 5000);
     }
   };
 

@@ -1,11 +1,19 @@
 import { Link } from "react-router-dom";
 import { LogoutAdmin } from "../../services/requests";
+import toast from "react-hot-toast";
 
 const Navbar = () => {
   const handleLogout = async () => {
-    await LogoutAdmin();
-    localStorage.removeItem("user-storage");
-    window.location.href = "/"; // Redirect to login page after logout
+    try {
+      await LogoutAdmin();
+      localStorage.removeItem("user-storage");
+      toast.success("Logging Out...");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error) {
+      console.error("Logout Failed");
+    }
   };
 
   return (
