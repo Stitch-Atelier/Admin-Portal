@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { serviceUser } from "../../../services/service";
+import { service } from "../../../services/service";
 
 const CreateOrder = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -10,7 +10,6 @@ const CreateOrder = () => {
 
   const inputRef = useRef<HTMLDivElement>(null);
 
-  // ✅ Close dropdown if clicked outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -40,7 +39,7 @@ const CreateOrder = () => {
   const fetchUsers = async (query: string) => {
     try {
       setIsLoading(true);
-      const res = await serviceUser.get(`/search?mobile=${query}`);
+      const res = await service.get(`/search?mobile=${query}`);
       setUsers(res.data);
       setShowDropdown(true);
     } catch (error) {

@@ -1,6 +1,13 @@
 import { Link } from "react-router-dom";
+import { LogoutAdmin } from "../../services/requests";
 
 const Navbar = () => {
+  const handleLogout = async () => {
+    await LogoutAdmin();
+    localStorage.removeItem("user-storage");
+    window.location.href = "/"; // Redirect to login page after logout
+  };
+
   return (
     <div className="flex justify-between items-center bg-base-200 shadow-sm py-2">
       <div className="px-4 font-bold">
@@ -21,7 +28,10 @@ const Navbar = () => {
             Create Order
           </Link>
         </ul>
-        <button className="btn btn-sm bg-red-500 text-white border-none ">
+        <button
+          onClick={handleLogout}
+          className="btn btn-sm bg-red-500 text-white border-none "
+        >
           Logout
         </button>
       </div>
