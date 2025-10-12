@@ -9,14 +9,14 @@ const Navbar = () => {
       <div className="flex items-center gap-4 mr-4">
         <ul className="flex items-center gap-4">
           <Link
-            to="/"
-            className="p-2  hover:underline hover:underline-offset-2  hover:font-semibold transition-all"
+            to="/dashboard/customer/create"
+            className="p-2 hover:underline hover:underline-offset-2  hover:font-semibold transition-all"
           >
-            Create User
+            Create Customer
           </Link>
           <Link
-            to="/"
-            className="p-2  hover:underline hover:underline-offset-2  hover:font-semibold transition-all"
+            to="/dashboard/order/create"
+            className="p-2 hover:underline hover:underline-offset-2  hover:font-semibold transition-all"
           >
             Create Order
           </Link>
