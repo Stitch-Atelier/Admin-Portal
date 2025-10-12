@@ -19,7 +19,9 @@ const RouteGuard = ({
       navigate("/");
     } else if (!requiresAuth && token) {
       // Public route with token -> go to dashboard
-      navigate("/dashboard");
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1000);
     }
   }, [token, navigate, requiresAuth]);
 
