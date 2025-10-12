@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 const Navbar = () => {
   return (
     <div className="flex justify-between items-center bg-base-200 shadow-sm py-2">
-      <div>
-        <h1 className="btn btn-ghost text-xl">Stitch Ateliers</h1>
+      <div className="px-4 font-bold">
+        <h1 className="text-xl">Stitch Ateliers</h1>
       </div>
       <div className="flex items-center gap-4 mr-4">
         <ul className="flex items-center gap-4">

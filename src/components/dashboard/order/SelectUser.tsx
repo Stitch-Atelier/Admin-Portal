@@ -1,82 +1,135 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { serviceUser } from "../../../services/service";
 
-interface User {
-  id: number;
-  name: string;
-  phone: string;
-}
+const CreateOrder = () => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [users, setUsers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
 
-const dummyUsers: User[] = [
-  { id: 1, name: "Rajat Kalotra", phone: "9876543210" },
-  { id: 2, name: "Aman Verma", phone: "9876501234" },
-  { id: 3, name: "Priya Sharma", phone: "9123456789" },
-  { id: 4, name: "Neha Singh", phone: "9812345678" },
-  { id: 5, name: "Karan Mehta", phone: "9998887776" },
-];
+  const inputRef = useRef<HTMLDivElement>(null);
 
-const SelectUser = () => {
-  const [query, setQuery] = useState<string>("");
-  const [results, setResults] = useState<User[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  // ✅ Close dropdown if clicked outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        inputRef.current &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const fetchUsers = (searchText: string) => {
-    if (!searchText.trim()) {
-      setResults([]);
-      return;
+  // ✅ Debounced API call
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      if (searchTerm.length >= 3) {
+        fetchUsers(searchTerm);
+      } else {
+        setUsers([]);
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchTerm]);
+
+  const fetchUsers = async (query: string) => {
+    try {
+      setIsLoading(true);
+      const res = await serviceUser.get(`/search?mobile=${query}`);
+      setUsers(res.data);
+      setShowDropdown(true);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    } finally {
+      setIsLoading(false);
     }
-
-    setLoading(true);
-    setTimeout(() => {
-      const filtered = dummyUsers.filter((user) =>
-        user.phone.toLowerCase().includes(searchText.toLowerCase())
-      );
-      setResults(filtered);
-      setLoading(false);
-    }, 400); // simulate network delay
   };
 
-  useEffect(() => {
-    const delay = setTimeout(() => {
-      fetchUsers(query);
-    }, 300);
-    return () => clearTimeout(delay);
-  }, [query]);
+  const handleSelectUser = (user: any) => {
+    setSelectedUser(user);
+    setSearchTerm(`${user.firstname} ${user.lastname}`);
+    setShowDropdown(false);
+  };
 
   return (
-    <main className="p-6 border border-gray-300 rounded-lg mx-auto shadow-sm bg-white">
-      <h2 className="text-lg font-semibold mb-4">Create Order</h2>
-      <label className="block text-sm font-medium mb-2">
-        Search by Mobile Number
-      </label>
-      <input
-        type="text"
-        placeholder="Enter mobile number..."
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        className="w-full border border-gray-400 rounded-md px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-      />
+    <main className="max-w-md mx-auto mt-10 p-6 border border-gray-300 rounded-2xl shadow-sm relative">
+      <h2 className="text-xl font-semibold mb-4 text-center">Create Order</h2>
 
-      {loading && <p className="text-sm text-gray-500 mt-2">Searching...</p>}
+      <div ref={inputRef} className="relative">
+        <input
+          type="text"
+          placeholder="Search by mobile number..."
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setSelectedUser(null);
+          }}
+          className="w-full border border-gray-400 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          onFocus={() => setShowDropdown(true)}
+        />
 
-      {results.length > 0 && (
-        <ul className="border border-gray-300 rounded-md mt-2 bg-white max-h-48 overflow-y-auto shadow-md">
-          {results.map((user) => (
-            <li
-              key={user.id}
-              className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm"
-              onClick={() => setQuery(user.phone)} // fill input on click
-            >
-              📞 {user.phone} — {user.name}
-            </li>
-          ))}
-        </ul>
-      )}
+        {/* 🔹 Dropdown List */}
+        {showDropdown && (
+          <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+            {isLoading && (
+              <p className="p-2 text-sm text-gray-500 text-center">
+                Searching...
+              </p>
+            )}
 
-      {!loading && query && results.length === 0 && (
-        <p className="text-sm text-gray-500 mt-2">No matching users found.</p>
+            {!isLoading && users.length > 0
+              ? users.map((user) => (
+                  <div
+                    key={user._id}
+                    onClick={() => handleSelectUser(user)}
+                    className="p-2 hover:bg-blue-50 cursor-pointer flex items-center gap-3"
+                  >
+                    {user.profilePic ? (
+                      <img
+                        src={user.profilePic}
+                        alt="profile"
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 text-sm">
+                        {user.firstname[0]}
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium">
+                        {user.firstname} {user.lastname}
+                      </p>
+                      <p className="text-sm text-gray-500">{user.mobile}</p>
+                    </div>
+                  </div>
+                ))
+              : !isLoading &&
+                searchTerm.length >= 3 && (
+                  <p className="p-2 text-sm text-gray-500 text-center">
+                    No users found
+                  </p>
+                )}
+          </div>
+        )}
+      </div>
+
+      {/* 🔹 Selected User Display */}
+      {selectedUser && (
+        <div className="mt-6 p-4 border border-green-300 bg-green-50 rounded-lg">
+          <h3 className="font-semibold text-green-700 mb-2">Selected User:</h3>
+          <p>
+            👤 {selectedUser.firstname} {selectedUser.lastname}
+          </p>
+          <p>📞 {selectedUser.mobile}</p>
+        </div>
       )}
     </main>
   );
 };
 
-export default SelectUser;
+export default CreateOrder;
