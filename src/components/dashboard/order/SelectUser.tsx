@@ -39,7 +39,7 @@ const CreateOrder = () => {
   const fetchUsers = async (query: string) => {
     try {
       setIsLoading(true);
-      const res = await service.get(`/search?mobile=${query}`);
+      const res = await service.get(`/users/search?mobile=${query}`);
       setUsers(res.data);
       setShowDropdown(true);
     } catch (error) {

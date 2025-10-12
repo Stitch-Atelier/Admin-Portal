@@ -9,7 +9,8 @@ const service = axios.create({
 service.interceptors.request.use(
   (config) => {
     const user = localStorage.getItem("user-storage");
-    const authToken = user ? JSON.parse(user).authToken : null;
+
+    const authToken = user ? JSON.parse(user)?.state?.authToken : null;
 
     if (authToken) {
       config.headers.Authorization = `Bearer ${authToken}`;
@@ -26,19 +27,22 @@ service.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response.status === 401) {
-      const newToken = await RefreshAuthToken(); // call refresh endpoint
-      console.log("This is newToken from response interceptor ", newToken);
+      const { response } = await RefreshAuthToken(); // call refresh endpoint
+      console.log(
+        "This is newToken from response interceptor ",
+        response?.authToken
+      );
 
       // Update token in local storage
       const user = localStorage.getItem("user-storage");
       if (user) {
         const parsedUser = JSON.parse(user);
-        parsedUser.authToken = newToken; // update token
+        parsedUser.authToken = response?.authToken; // update token
         localStorage.setItem("user-storage", JSON.stringify(parsedUser));
       }
 
       // Retry original request with new token
-      error.config.headers["Authorization"] = `Bearer ${newToken}`;
+      error.config.headers["Authorization"] = `Bearer ${response?.authToken}`;
       return axios(error.config);
     }
     return Promise.reject(error);

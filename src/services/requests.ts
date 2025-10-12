@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 const LoginAdmin = async (mobile: string) => {
   try {
     const response = await axios.post(
-      `${import.meta.env.VITE_API_URL}/admin/login`,
+      `${import.meta.env.VITE_API_URL}/login`,
       {
         mobile,
       },
@@ -15,17 +15,20 @@ const LoginAdmin = async (mobile: string) => {
       status: response?.status,
     };
   } catch (error: any) {
-    if (error.status === 404) toast.error("Login Failed - No User Found.");
-    if (error.status === 403) toast.error("Login Failed - Unauthorized User");
-    if (error.status === 500) toast.error("Login Failed - Server Error");
-    throw error;
+    if (error.response) {
+      console.error("Error message:", error.response.data.message);
+      toast.error(error.response.data.message);
+    } else {
+      console.error("Something went wrong");
+    }
   }
 };
 
 const RefreshAuthToken = async () => {
   try {
     const response = await axios.post(
-      `${import.meta.env.VITE_API_URL}/admin/refresh`,
+      `${import.meta.env.VITE_API_URL}/refresh`,
+      {},
       { withCredentials: true }
     );
     return {
@@ -41,16 +44,19 @@ const RefreshAuthToken = async () => {
 const LogoutAdmin = async () => {
   try {
     await axios.post(
-      `${import.meta.env.VITE_API_URL}/admin/logout`,
+      `${import.meta.env.VITE_API_URL}/logout`,
       {},
       {
         withCredentials: true,
       }
     );
   } catch (error: any) {
-    if (error.status === 404) toast.error("Logout Failed!");
-    if (error.status === 500) toast.error("Logout Failed - Server Error");
-    throw error;
+    if (error.response) {
+      console.error("Error message:", error.response.data.message);
+      toast.error(error.response.data.message);
+    } else {
+      console.error("Something went wrong");
+    }
   }
 };
 
