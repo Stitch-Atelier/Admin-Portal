@@ -25,7 +25,6 @@ const useUserStore = create<UserStore>()(
 
       // ✅ Set user info and token
       setUser: (data) => {
-        console.log("Setting user data:", data);
         set({
           authToken: data.authToken,
           message: data.message,

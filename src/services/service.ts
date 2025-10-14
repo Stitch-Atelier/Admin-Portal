@@ -1,5 +1,6 @@
 import axios from "axios";
-import { RefreshAuthToken } from "./requests";
+import { LogoutAdmin, RefreshAuthToken } from "./requests";
+import toast from "react-hot-toast";
 
 const service = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
@@ -27,22 +28,32 @@ service.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response.status === 401) {
-      const { response } = await RefreshAuthToken(); // call refresh endpoint
-      console.log(
-        "This is newToken from response interceptor ",
-        response?.authToken
-      );
+      try {
+        const { response } = await RefreshAuthToken(); // call refresh endpoint
+        // Update token in local storage
+        const user = localStorage.getItem("user-storage");
+        if (user) {
+          const parsedUser = JSON.parse(user);
+          parsedUser.authToken = response?.authToken; // update token
+          localStorage.setItem("user-storage", JSON.stringify(parsedUser));
+        }
 
-      // Update token in local storage
-      const user = localStorage.getItem("user-storage");
-      if (user) {
-        const parsedUser = JSON.parse(user);
-        parsedUser.authToken = response?.authToken; // update token
-        localStorage.setItem("user-storage", JSON.stringify(parsedUser));
+        // Retry original request with new token
+        error.config.headers["Authorization"] = `Bearer ${response?.authToken}`;
+      } catch (error: any) {
+        if (error.response) {
+          console.error("Error message:", error.response.data.message);
+          toast.error(error.response.data.message);
+          await LogoutAdmin();
+          setTimeout(() => {
+            window.localStorage.removeItem("user-storage");
+            window.location.reload();
+          }, 1500);
+        } else {
+          console.error("Something went wrong");
+        }
       }
 
-      // Retry original request with new token
-      error.config.headers["Authorization"] = `Bearer ${response?.authToken}`;
       return axios(error.config);
     }
     return Promise.reject(error);
