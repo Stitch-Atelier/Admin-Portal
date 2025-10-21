@@ -5,9 +5,9 @@ import Home from "./components/dashboard/Home";
 import RouteGuard from "./components/RouteGaurd";
 import Layout from "./components/dashboard/Layout";
 import UserLay from "./components/dashboard/user/UserLay";
-import OrderLay from "./components/dashboard/order/OrderLay";
 import CreateUser from "./components/dashboard/user/CreateUser";
 import CreateOrder from "./components/dashboard/order/CreateOrder";
+import OrderLay from "./components/dashboard/order/OrderLay";
 
 const router = createBrowserRouter([
   {
