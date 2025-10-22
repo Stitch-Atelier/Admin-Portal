@@ -230,7 +230,7 @@ const UserSelector = ({ onSelect, defaultValue = "" }: UserSelectorProps) => {
               </li>
               {filtered.map((user, index) => (
                 <li
-                  key={user.id}
+                  key={index}
                   className={`px-4 py-3 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0 ${
                     index === focusedIndex ? "bg-indigo-50" : "hover:bg-gray-50"
                   }`}

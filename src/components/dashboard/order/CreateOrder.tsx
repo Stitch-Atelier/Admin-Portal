@@ -9,19 +9,63 @@ const CreateOrder = () => {
   const [addressInfo, setAddressInfo] = useState<any>(null);
   const [allDresses, setAllDresses] = useState<any>(null);
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
+  const [selectedDresses, setSelectedDresses] = useState<any[]>([]);
+  const [totalBeforeDiscount, setTotalBeforeDiscount] = useState<number>(0);
 
   const handleIncrease = (id: string) => {
     setQuantities((prev) => ({
       ...prev,
       [id]: (prev[id] || 0) + 1,
     }));
+
+    const dressOBJ = allDresses.find((dress: any) => dress._id === id);
+    dressOBJ.dressStatus = "fabric picked";
+    dressOBJ.dressPic = "";
+    setTotalBeforeDiscount(
+      (prev) => prev + (dressOBJ?.dressPrice ? dressOBJ.dressPrice : 0)
+    );
+    setSelectedDresses((prev) => [...prev, dressOBJ]);
   };
 
   const handleDecrease = (id: string) => {
-    setQuantities((prev) => ({
-      ...prev,
-      [id]: Math.max((prev[id] || 0) - 1, 0),
-    }));
+    const dressOBJ = allDresses.find((d: any) => d._id === id);
+    if (!dressOBJ) return;
+
+    const price = dressOBJ.dressPrice || 0;
+
+    setQuantities((prev) => {
+      const currentQty = prev[id] || 0;
+      if (currentQty === 0) return prev; // nothing to do
+      const nextQty = currentQty - 1;
+      // create new object to avoid mutating prev
+      const next = { ...prev };
+      if (nextQty === 0) {
+        delete next[id];
+      } else {
+        next[id] = nextQty;
+      }
+      return next;
+    });
+
+    setSelectedDresses((prev) => {
+      const existsIndex = prev.findIndex((item) => item._id === id);
+      if (existsIndex === -1) return prev; // nothing to do
+
+      const copy = [...prev];
+      const item = copy[existsIndex];
+
+      if (item.qty > 1) {
+        copy[existsIndex] = { ...item, qty: item.qty - 1 };
+        return copy;
+      } else {
+        // qty == 1 -> remove item entirely
+        copy.splice(existsIndex, 1);
+        return copy;
+      }
+    });
+
+    // decrease total, but never go below 0
+    setTotalBeforeDiscount((prev) => Math.max(0, prev - price));
   };
 
   // Fetch Address Info
@@ -48,6 +92,10 @@ const CreateOrder = () => {
       GetAllDresses();
     }
   }, [selectedUser]);
+
+  useEffect(() => {
+    console.log("Selected Dresses:", selectedDresses);
+  }, [selectedDresses]);
 
   return (
     <main>
@@ -133,7 +181,7 @@ const CreateOrder = () => {
                       className="w-full h-56 object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
-                    <div className="w-full h-56 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                    <div className="w-full h-32 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
                       <svg
                         className="w-16 h-16 text-gray-400"
                         fill="none"
@@ -153,7 +201,13 @@ const CreateOrder = () => {
                   {/* Type Badge */}
                   {dress?.dressType && (
                     <div className="absolute top-3 right-3">
-                      <span className="px-3 py-1 bg-red-500 text-white text-xs font-semibold rounded-full shadow-lg">
+                      <span
+                        className={`px-3 py-1 ${
+                          dress?.dressType === "No Lining"
+                            ? "bg-red-500"
+                            : "bg-sky-500"
+                        }  text-white text-xs font-semibold rounded-full shadow-lg`}
+                      >
                         {dress.dressType}
                       </span>
                     </div>
@@ -170,7 +224,7 @@ const CreateOrder = () => {
                   {/* Price */}
                   <div className="mb-4">
                     <p className="text-sm text-gray-500 mb-1">Price</p>
-                    <p className="text-3xl font-bold text-indigo-600">
+                    <p className="text-3xl font-bold text-green-600">
                       ₹{dress?.dressPrice?.toLocaleString("en-IN")}
                     </p>
                   </div>
@@ -178,13 +232,13 @@ const CreateOrder = () => {
                   {/* Quantity Controls */}
                   <div className="mt-auto pt-4 border-t border-gray-100">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-600">
+                      <span className="text-base font-semibold text-gray-600">
                         Quantity
                       </span>
                       <div className="flex items-center gap-3 bg-gray-50 rounded-full p-1">
                         <button
                           onClick={() => handleDecrease(dress._id)}
-                          className="bg-white hover:bg-indigo-500 hover:text-white text-gray-700 p-2 rounded-full transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="bg-white hover:bg-rose-500 hover:text-white text-gray-700 p-2 rounded-full transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                           disabled={
                             !quantities[dress._id] ||
                             quantities[dress._id] === 0
@@ -199,7 +253,7 @@ const CreateOrder = () => {
 
                         <button
                           onClick={() => handleIncrease(dress._id)}
-                          className="bg-indigo-500 hover:bg-indigo-600 text-white p-2 rounded-full transition-all duration-200 shadow-sm"
+                          className="bg-blue-500 hover:bg-green-600 text-white p-2 rounded-full transition-all duration-200 shadow-sm"
                         >
                           <FiPlus className="w-4 h-4" />
                         </button>
@@ -235,6 +289,59 @@ const CreateOrder = () => {
             </p>
           </div>
         )}
+        {Array.isArray(allDresses) && (
+          <div className="text-center py-16">
+            <button
+              disabled={selectedDresses.length === 0}
+              onClick={() =>
+                (
+                  document.getElementById("model") as HTMLDialogElement | null
+                )?.showModal()
+              }
+              className="btn btn-md font-bold text-white bg-blue-500 hover:bg-blue-600 disabled:hovercursor-not-allowed disabled:bg-gray-400 transition-all duration-200"
+            >
+              Create Order
+            </button>
+          </div>
+        )}
+
+        <dialog id="model" className="modal">
+          <div className="modal-box max-w-3xl">
+            <form method="dialog">
+              {/* if there is a button in form, it will close the modal */}
+              <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+                ✕
+              </button>
+            </form>
+            <h3 className="font-bold text-lg mb-4">Order Summary</h3>
+            <div>
+              <h5 className="font-semibold mb-2">
+                Name: {selectedUser?.firstname}
+              </h5>
+              <h5 className="font-semibold mb-2">
+                Mobile: {selectedUser?.mobile}
+              </h5>
+              <h5 className="font-semibold mb-2">
+                Address: {addressInfo?.address}, {addressInfo?.city},{" "}
+                {addressInfo?.state}, {addressInfo?.country} -{" "}
+                {addressInfo?.pinCode}
+              </h5>
+              <div className="mt-4">
+                <h4 className="font-semibold mb-2">Dresses:</h4>
+                <ul className="list-disc list-inside">
+                  {selectedDresses.map((dress, index) => (
+                    <li key={index}>
+                      {dress.dressName} - {dress?.dressPrice}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <h5 className="font-semibold mb-2">
+                Total Before Discount: {totalBeforeDiscount}
+              </h5>
+            </div>
+          </div>
+        </dialog>
       </div>
     </main>
   );
