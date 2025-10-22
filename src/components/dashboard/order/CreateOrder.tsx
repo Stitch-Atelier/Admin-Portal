@@ -93,10 +93,6 @@ const CreateOrder = () => {
     }
   }, [selectedUser]);
 
-  useEffect(() => {
-    console.log("Selected Dresses:", selectedDresses);
-  }, [selectedDresses]);
-
   return (
     <main>
       <UserSelector onSelect={setSelectedUser} />
@@ -289,6 +285,8 @@ const CreateOrder = () => {
             </p>
           </div>
         )}
+
+        {/* Create Order */}
         {Array.isArray(allDresses) && (
           <div className="text-center py-16">
             <button
@@ -306,39 +304,146 @@ const CreateOrder = () => {
         )}
 
         <dialog id="model" className="modal">
-          <div className="modal-box max-w-3xl">
+          <div className="modal-box max-w-3xl bg-white rounded-2xl shadow-xl">
             <form method="dialog">
-              {/* if there is a button in form, it will close the modal */}
-              <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+              <button className="btn btn-sm btn-circle btn-ghost absolute right-3 top-3">
                 ✕
               </button>
             </form>
-            <h3 className="font-bold text-lg mb-4">Order Summary</h3>
-            <div>
-              <h5 className="font-semibold mb-2">
-                Name: {selectedUser?.firstname}
-              </h5>
-              <h5 className="font-semibold mb-2">
-                Mobile: {selectedUser?.mobile}
-              </h5>
-              <h5 className="font-semibold mb-2">
-                Address: {addressInfo?.address}, {addressInfo?.city},{" "}
-                {addressInfo?.state}, {addressInfo?.country} -{" "}
-                {addressInfo?.pinCode}
-              </h5>
-              <div className="mt-4">
-                <h4 className="font-semibold mb-2">Dresses:</h4>
-                <ul className="list-disc list-inside">
-                  {selectedDresses.map((dress, index) => (
-                    <li key={index}>
-                      {dress.dressName} - {dress?.dressPrice}
-                    </li>
-                  ))}
-                </ul>
+
+            <h3 className="text-2xl font-bold mb-5 text-gray-800 border-b pb-2">
+              🧾 Order Summary
+            </h3>
+
+            <div className="space-y-4">
+              {/* User Info */}
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <h4 className="text-lg font-semibold mb-3 text-gray-700">
+                  Customer Details
+                </h4>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold">Name:</span>{" "}
+                  {selectedUser?.firstname}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold">Mobile:</span>{" "}
+                  {selectedUser?.mobile}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold">Address:</span>{" "}
+                  {addressInfo?.address}, {addressInfo?.city},{" "}
+                  {addressInfo?.state}, {addressInfo?.country} -{" "}
+                  {addressInfo?.pinCode}
+                </p>
               </div>
-              <h5 className="font-semibold mb-2">
-                Total Before Discount: {totalBeforeDiscount}
-              </h5>
+
+              {/* Dresses Section */}
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <h4 className="text-lg font-semibold mb-3 text-gray-700">
+                  Dresses ({selectedDresses?.length})
+                </h4>
+
+                <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2">
+                  {selectedDresses.map((dress, index) => (
+                    <div
+                      key={index}
+                      className="p-3 border border-gray-200 rounded-xl bg-white shadow-sm"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h5 className="font-semibold text-gray-800">
+                            {dress.dressName}
+                          </h5>
+                          <p className="text-sm text-gray-600">
+                            ₹{dress.dressPrice} × {dress.qty || 1}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Measurements Grid */}
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                        {[
+                          "Neck",
+                          "Chest",
+                          "Waist",
+                          "Armhole",
+                          "Shoulder W",
+                          "Arm Length",
+                          "Waist Lower",
+                          "Hip",
+                          "Thigh",
+                          "Rise",
+                          "Inseam",
+                          "Outseam",
+                        ].map((label) => (
+                          <div key={label}>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              {label}
+                            </label>
+                            <input
+                              className="input input-sm input-bordered w-full text-sm"
+                              type="number"
+                              placeholder="0"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pricing Section */}
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <h4 className="text-lg font-semibold mb-3 text-gray-700">
+                  Billing Summary
+                </h4>
+                <div className="space-y-2 text-sm text-gray-700">
+                  <p>
+                    <span className="font-medium">Total Before Discount:</span>{" "}
+                    ₹{totalBeforeDiscount}
+                  </p>
+                  <p className="font-medium">Available Discounts:</p>
+                  <ul className="ml-4 list-disc">
+                    {selectedDresses.map((index) => (
+                      <li key={index} className="flex items-center gap-3 my-1">
+                        Discount {index + 1}
+                        <button className="btn btn-xs btn-outline btn-primary">
+                          Apply
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <p>
+                    <span className="font-medium">Total After Discount:</span> ₹
+                    {totalBeforeDiscount}
+                  </p>
+
+                  <div className="flex items-center gap-3">
+                    <label className="font-medium">Extra Charges:</label>
+                    <input
+                      type="text"
+                      className="input input-sm input-bordered w-28 text-sm"
+                      placeholder="₹0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-medium">Remarks:</label>
+                    <textarea
+                      placeholder="Reason for extra charges..."
+                      className="textarea textarea-bordered w-full mt-1 text-sm"
+                      rows={3}
+                    ></textarea>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 pt-3 border-t">
+                <button className="btn btn-primary">Confirm Order</button>
+              </div>
             </div>
           </div>
         </dialog>
