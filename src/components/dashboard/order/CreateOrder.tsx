@@ -13,23 +13,30 @@ const CreateOrder = () => {
   const [addressInfo, setAddressInfo] = useState<any>(null);
   const [allDresses, setAllDresses] = useState<any>(null);
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
+
+  // Changed: Each dress instance has a unique instanceId
   const [selectedDresses, setSelectedDresses] = useState<any[]>([]);
   const [totalBeforeDiscount, setTotalBeforeDiscount] = useState<number>(0);
   const [totalAfterDiscount, setTotalAfterDiscount] = useState<number>(0);
   const [extraCharges, setExtraCharges] = useState<number>(0);
   const [remarks, setRemarks] = useState<string>("");
 
-  // Store images for each dress
+  // Store images for each dress instance (using instanceId)
   const [dressImages, setDressImages] = useState<{
-    [key: string]: File | null;
+    [instanceId: string]: File | null;
   }>({});
 
-  // Store measurements for each dress
+  // Store measurements for each dress instance (using instanceId)
   const [dressMeasurements, setDressMeasurements] = useState<{
-    [key: string]: any;
+    [instanceId: string]: any;
   }>({});
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Generate unique instance ID
+  const generateInstanceId = () => {
+    return `dress_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  };
 
   const handleIncrease = (id: string) => {
     setQuantities((prev) => ({
@@ -38,8 +45,13 @@ const CreateOrder = () => {
     }));
 
     const dressOBJ = allDresses.find((dress: any) => dress._id === id);
+
+    // Create unique instance ID for this dress
+    const instanceId = generateInstanceId();
+
     const newDress = {
       ...dressOBJ,
+      instanceId: instanceId, // Add unique instance ID
       dressStatus: "fabric picked",
       dressPic: "",
     };
@@ -52,25 +64,23 @@ const CreateOrder = () => {
     );
     setSelectedDresses((prev) => [...prev, newDress]);
 
-    // Initialize empty measurement for this dress
-    if (!dressMeasurements[id]) {
-      setDressMeasurements((prev) => ({
-        ...prev,
-        [id]: {
-          neck: { type: "Top", val: "" },
-          bust: { type: "Top", val: "" },
-          waist: { type: "Top", val: "" },
-          armHole: { type: "Top", val: "" },
-          shoulderW: { type: "Top", val: "" },
-          armL: { type: "Top", val: "" },
-          hip: { type: "Bottom", val: "" },
-          thigh: { type: "Bottom", val: "" },
-          rise: { type: "Bottom", val: "" },
-          inseam: { type: "Bottom", val: "" },
-          outseam: { type: "Bottom", val: "" },
-        },
-      }));
-    }
+    // Initialize empty measurement for this dress instance
+    setDressMeasurements((prev) => ({
+      ...prev,
+      [instanceId]: {
+        neck: { type: "Top", val: "" },
+        bust: { type: "Top", val: "" },
+        waist: { type: "Top", val: "" },
+        armHole: { type: "Top", val: "" },
+        shoulderW: { type: "Top", val: "" },
+        armL: { type: "Top", val: "" },
+        hip: { type: "Bottom", val: "" },
+        thigh: { type: "Bottom", val: "" },
+        rise: { type: "Bottom", val: "" },
+        inseam: { type: "Bottom", val: "" },
+        outseam: { type: "Bottom", val: "" },
+      },
+    }));
   };
 
   const handleDecrease = (id: string) => {
@@ -86,29 +96,34 @@ const CreateOrder = () => {
       const next = { ...prev };
       if (nextQty === 0) {
         delete next[id];
-        // Remove image and measurements when quantity becomes 0
-        setDressImages((prevImages) => {
-          const newImages = { ...prevImages };
-          delete newImages[id];
-          return newImages;
-        });
-        setDressMeasurements((prevMeasurements) => {
-          const newMeasurements = { ...prevMeasurements };
-          delete newMeasurements[id];
-          return newMeasurements;
-        });
       } else {
         next[id] = nextQty;
       }
       return next;
     });
 
+    // Remove the LAST instance of this dress from selectedDresses
     setSelectedDresses((prev) => {
-      const existsIndex = prev.findIndex((item) => item._id === id);
-      if (existsIndex === -1) return prev;
+      const lastIndex = prev.map((item) => item._id).lastIndexOf(id);
+      if (lastIndex === -1) return prev;
 
       const copy = [...prev];
-      copy.splice(existsIndex, 1);
+      const removedDress = copy[lastIndex];
+
+      // Remove image and measurements for this specific instance
+      setDressImages((prevImages) => {
+        const newImages = { ...prevImages };
+        delete newImages[removedDress.instanceId];
+        return newImages;
+      });
+
+      setDressMeasurements((prevMeasurements) => {
+        const newMeasurements = { ...prevMeasurements };
+        delete newMeasurements[removedDress.instanceId];
+        return newMeasurements;
+      });
+
+      copy.splice(lastIndex, 1);
       return copy;
     });
 
@@ -116,26 +131,26 @@ const CreateOrder = () => {
     setTotalAfterDiscount((prev) => Math.max(0, prev - price));
   };
 
-  // Handle image upload for a specific dress
-  const handleImageUpload = (dressId: string, file: File | null) => {
+  // Handle image upload for a specific dress instance
+  const handleImageUpload = (instanceId: string, file: File | null) => {
     setDressImages((prev) => ({
       ...prev,
-      [dressId]: file,
+      [instanceId]: file,
     }));
   };
 
-  // Handle measurement change
+  // Handle measurement change for a specific dress instance
   const handleMeasurementChange = (
-    dressId: string,
+    instanceId: string,
     field: string,
     value: string
   ) => {
     setDressMeasurements((prev) => ({
       ...prev,
-      [dressId]: {
-        ...prev[dressId],
+      [instanceId]: {
+        ...prev[instanceId],
         [field]: {
-          ...prev[dressId][field],
+          ...prev[instanceId][field],
           val: value,
         },
       },
@@ -144,15 +159,15 @@ const CreateOrder = () => {
 
   // Validate order before submission
   const validateOrder = (): boolean => {
-    // Check if all dresses have images
+    // Check if all dress instances have images
     for (const dress of selectedDresses) {
-      if (!dressImages[dress._id]) {
+      if (!dressImages[dress.instanceId]) {
         toast.error(`Please upload image for ${dress.dressName}`);
         return false;
       }
 
       // Check if all measurements are filled
-      const measurements = dressMeasurements[dress._id];
+      const measurements = dressMeasurements[dress.instanceId];
       if (!measurements) {
         toast.error(`Please fill measurements for ${dress.dressName}`);
         return false;
@@ -199,7 +214,7 @@ const CreateOrder = () => {
         dressPrice: dress.dressPrice,
         dressType: dress.dressType,
         dressStatus: dress.dressStatus,
-        measurement: dressMeasurements[dress._id],
+        measurement: dressMeasurements[dress.instanceId],
       }));
 
       const orderData = {
@@ -214,7 +229,7 @@ const CreateOrder = () => {
 
       // Prepare images array (maintain order matching dresses array)
       const imagesArray = selectedDresses.map(
-        (dress) => dressImages[dress._id] as File
+        (dress) => dressImages[dress.instanceId] as File
       );
 
       // Call API
@@ -495,16 +510,16 @@ const CreateOrder = () => {
                 <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
                   {selectedDresses.map((dress, index) => (
                     <div
-                      key={index}
+                      key={dress.instanceId} // Use instanceId for key
                       className="p-4 border border-gray-200 rounded-xl bg-white shadow-sm"
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div>
                           <h5 className="font-semibold text-gray-800">
-                            {dress.dressName}
+                            {dress.dressName} #{index + 1}
                           </h5>
                           <p className="text-sm text-gray-600">
-                            ₹{dress.dressPrice} × {quantities[dress._id]}
+                            ₹{dress.dressPrice}
                           </p>
                         </div>
                       </div>
@@ -519,16 +534,16 @@ const CreateOrder = () => {
                           accept="image/*"
                           onChange={(e) =>
                             handleImageUpload(
-                              dress._id,
+                              dress.instanceId,
                               e.target.files?.[0] || null
                             )
                           }
                           className="file-input file-input-bordered file-input-sm w-full"
                           required
                         />
-                        {dressImages[dress._id] && (
+                        {dressImages[dress.instanceId] && (
                           <p className="text-xs text-green-600 mt-1">
-                            ✓ {dressImages[dress._id]?.name}
+                            ✓ {dressImages[dress.instanceId]?.name}
                           </p>
                         )}
                       </div>
@@ -558,11 +573,12 @@ const CreateOrder = () => {
                               step="0.1"
                               placeholder="0"
                               value={
-                                dressMeasurements[dress._id]?.[key]?.val || ""
+                                dressMeasurements[dress.instanceId]?.[key]
+                                  ?.val || ""
                               }
                               onChange={(e) =>
                                 handleMeasurementChange(
-                                  dress._id,
+                                  dress.instanceId,
                                   key,
                                   e.target.value
                                 )
