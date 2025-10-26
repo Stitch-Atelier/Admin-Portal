@@ -1,6 +1,10 @@
 import UserSelector from "./UserSelector";
 import { useEffect, useState } from "react";
-import { FetchAddress, FetchAllDresses } from "../../../services/requests";
+import {
+  FetchAddress,
+  FetchAllDresses,
+  CreateOrderWithImages,
+} from "../../../services/requests";
 import toast from "react-hot-toast";
 import { FiMinus, FiPlus } from "react-icons/fi";
 
@@ -11,6 +15,21 @@ const CreateOrder = () => {
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
   const [selectedDresses, setSelectedDresses] = useState<any[]>([]);
   const [totalBeforeDiscount, setTotalBeforeDiscount] = useState<number>(0);
+  const [totalAfterDiscount, setTotalAfterDiscount] = useState<number>(0);
+  const [extraCharges, setExtraCharges] = useState<number>(0);
+  const [remarks, setRemarks] = useState<string>("");
+
+  // Store images for each dress
+  const [dressImages, setDressImages] = useState<{
+    [key: string]: File | null;
+  }>({});
+
+  // Store measurements for each dress
+  const [dressMeasurements, setDressMeasurements] = useState<{
+    [key: string]: any;
+  }>({});
+
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const handleIncrease = (id: string) => {
     setQuantities((prev) => ({
@@ -19,12 +38,39 @@ const CreateOrder = () => {
     }));
 
     const dressOBJ = allDresses.find((dress: any) => dress._id === id);
-    dressOBJ.dressStatus = "fabric picked";
-    dressOBJ.dressPic = "";
+    const newDress = {
+      ...dressOBJ,
+      dressStatus: "fabric picked",
+      dressPic: "",
+    };
+
     setTotalBeforeDiscount(
       (prev) => prev + (dressOBJ?.dressPrice ? dressOBJ.dressPrice : 0)
     );
-    setSelectedDresses((prev) => [...prev, dressOBJ]);
+    setTotalAfterDiscount(
+      (prev) => prev + (dressOBJ?.dressPrice ? dressOBJ.dressPrice : 0)
+    );
+    setSelectedDresses((prev) => [...prev, newDress]);
+
+    // Initialize empty measurement for this dress
+    if (!dressMeasurements[id]) {
+      setDressMeasurements((prev) => ({
+        ...prev,
+        [id]: {
+          neck: { type: "Top", val: "" },
+          bust: { type: "Top", val: "" },
+          waist: { type: "Top", val: "" },
+          armHole: { type: "Top", val: "" },
+          shoulderW: { type: "Top", val: "" },
+          armL: { type: "Top", val: "" },
+          hip: { type: "Bottom", val: "" },
+          thigh: { type: "Bottom", val: "" },
+          rise: { type: "Bottom", val: "" },
+          inseam: { type: "Bottom", val: "" },
+          outseam: { type: "Bottom", val: "" },
+        },
+      }));
+    }
   };
 
   const handleDecrease = (id: string) => {
@@ -35,12 +81,22 @@ const CreateOrder = () => {
 
     setQuantities((prev) => {
       const currentQty = prev[id] || 0;
-      if (currentQty === 0) return prev; // nothing to do
+      if (currentQty === 0) return prev;
       const nextQty = currentQty - 1;
-      // create new object to avoid mutating prev
       const next = { ...prev };
       if (nextQty === 0) {
         delete next[id];
+        // Remove image and measurements when quantity becomes 0
+        setDressImages((prevImages) => {
+          const newImages = { ...prevImages };
+          delete newImages[id];
+          return newImages;
+        });
+        setDressMeasurements((prevMeasurements) => {
+          const newMeasurements = { ...prevMeasurements };
+          delete newMeasurements[id];
+          return newMeasurements;
+        });
       } else {
         next[id] = nextQty;
       }
@@ -49,30 +105,155 @@ const CreateOrder = () => {
 
     setSelectedDresses((prev) => {
       const existsIndex = prev.findIndex((item) => item._id === id);
-      if (existsIndex === -1) return prev; // nothing to do
+      if (existsIndex === -1) return prev;
 
       const copy = [...prev];
-      const item = copy[existsIndex];
-
-      if (item.qty > 1) {
-        copy[existsIndex] = { ...item, qty: item.qty - 1 };
-        return copy;
-      } else {
-        // qty == 1 -> remove item entirely
-        copy.splice(existsIndex, 1);
-        return copy;
-      }
+      copy.splice(existsIndex, 1);
+      return copy;
     });
 
-    // decrease total, but never go below 0
     setTotalBeforeDiscount((prev) => Math.max(0, prev - price));
+    setTotalAfterDiscount((prev) => Math.max(0, prev - price));
+  };
+
+  // Handle image upload for a specific dress
+  const handleImageUpload = (dressId: string, file: File | null) => {
+    setDressImages((prev) => ({
+      ...prev,
+      [dressId]: file,
+    }));
+  };
+
+  // Handle measurement change
+  const handleMeasurementChange = (
+    dressId: string,
+    field: string,
+    value: string
+  ) => {
+    setDressMeasurements((prev) => ({
+      ...prev,
+      [dressId]: {
+        ...prev[dressId],
+        [field]: {
+          ...prev[dressId][field],
+          val: value,
+        },
+      },
+    }));
+  };
+
+  // Validate order before submission
+  const validateOrder = (): boolean => {
+    // Check if all dresses have images
+    for (const dress of selectedDresses) {
+      if (!dressImages[dress._id]) {
+        toast.error(`Please upload image for ${dress.dressName}`);
+        return false;
+      }
+
+      // Check if all measurements are filled
+      const measurements = dressMeasurements[dress._id];
+      if (!measurements) {
+        toast.error(`Please fill measurements for ${dress.dressName}`);
+        return false;
+      }
+
+      const requiredFields = [
+        "neck",
+        "bust",
+        "waist",
+        "armHole",
+        "shoulderW",
+        "armL",
+        "hip",
+        "thigh",
+        "rise",
+        "inseam",
+        "outseam",
+      ];
+
+      for (const field of requiredFields) {
+        if (!measurements[field]?.val || measurements[field].val === "") {
+          toast.error(
+            `Please fill ${field} measurement for ${dress.dressName}`
+          );
+          return false;
+        }
+      }
+    }
+
+    return true;
+  };
+
+  // Submit order
+  const handleConfirmOrder = async () => {
+    if (!validateOrder()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // Prepare order data
+      const dressesData = selectedDresses.map((dress) => ({
+        dressId: dress._id,
+        dressName: dress.dressName,
+        dressPrice: dress.dressPrice,
+        dressType: dress.dressType,
+        dressStatus: dress.dressStatus,
+        measurement: dressMeasurements[dress._id],
+      }));
+
+      const orderData = {
+        dresses: dressesData,
+        address: addressInfo._id,
+        amountBeforeDiscount: totalBeforeDiscount,
+        amountAfterDiscount: totalAfterDiscount,
+        extraCharges: extraCharges,
+        userId: selectedUser._id,
+        remarks: remarks,
+      };
+
+      // Prepare images array (maintain order matching dresses array)
+      const imagesArray = selectedDresses.map(
+        (dress) => dressImages[dress._id] as File
+      );
+
+      // Call API
+      const { response, status } = await CreateOrderWithImages(
+        orderData,
+        imagesArray
+      );
+
+      if (status === 201) {
+        toast.success("Order created successfully!");
+
+        // Reset form
+        setSelectedDresses([]);
+        setQuantities({});
+        setDressImages({});
+        setDressMeasurements({});
+        setTotalBeforeDiscount(0);
+        setTotalAfterDiscount(0);
+        setExtraCharges(0);
+        setRemarks("");
+
+        // Close modal
+        (document.getElementById("model") as HTMLDialogElement)?.close();
+      } else {
+        toast.error(response?.message || "Failed to create order");
+      }
+    } catch (error: any) {
+      console.error("Order creation error:", error);
+      toast.error("An error occurred while creating the order");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Fetch Address Info
   const GetAddressInfo = async (userId: string) => {
     const { response, status } = await FetchAddress(userId);
     if (status === 200) {
-      setAddressInfo(response[0]); //only first element of array is picked
+      setAddressInfo(response[0]);
       toast.success("Address fetched successfully!");
     }
   };
@@ -80,12 +261,11 @@ const CreateOrder = () => {
   const GetAllDresses = async () => {
     const { response, status } = await FetchAllDresses();
     if (status === 200) {
-      setAllDresses(response?.dresses); //only first element of array is picked
+      setAllDresses(response?.dresses);
       toast.success("Dresses fetched successfully!");
     }
   };
 
-  // Fetch address info when selectedUser changes
   useEffect(() => {
     if (selectedUser) {
       GetAddressInfo(selectedUser?._id);
@@ -96,6 +276,7 @@ const CreateOrder = () => {
   return (
     <main>
       <UserSelector onSelect={setSelectedUser} />
+
       {addressInfo && (
         <div className="mt-8 mb-8 p-6 rounded-2xl border border-indigo-100 shadow-sm bg-gradient-to-br from-indigo-50 to-white max-w-4xl mx-auto">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
@@ -168,33 +349,7 @@ const CreateOrder = () => {
                 key={dress._id}
                 className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden flex flex-col"
               >
-                {/* Image Container */}
                 <div className="relative overflow-hidden bg-gray-50">
-                  {dress?.dressPic ? (
-                    <img
-                      src={dress.dressPic}
-                      alt={dress.dressName}
-                      className="w-full h-56 object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="w-full h-32 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                      <svg
-                        className="w-16 h-16 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        />
-                      </svg>
-                    </div>
-                  )}
-
-                  {/* Type Badge */}
                   {dress?.dressType && (
                     <div className="absolute top-3 right-3">
                       <span
@@ -202,7 +357,7 @@ const CreateOrder = () => {
                           dress?.dressType === "No Lining"
                             ? "bg-red-500"
                             : "bg-sky-500"
-                        }  text-white text-xs font-semibold rounded-full shadow-lg`}
+                        } text-white text-xs font-semibold rounded-full shadow-lg`}
                       >
                         {dress.dressType}
                       </span>
@@ -210,14 +365,11 @@ const CreateOrder = () => {
                   )}
                 </div>
 
-                {/* Content Container */}
                 <div className="p-5 flex flex-col flex-grow">
-                  {/* Dress Name */}
                   <h3 className="text-lg font-bold text-gray-800 mb-3 line-clamp-2 min-h-[3.5rem]">
                     {dress?.dressName}
                   </h3>
 
-                  {/* Price */}
                   <div className="mb-4">
                     <p className="text-sm text-gray-500 mb-1">Price</p>
                     <p className="text-3xl font-bold text-green-600">
@@ -225,7 +377,6 @@ const CreateOrder = () => {
                     </p>
                   </div>
 
-                  {/* Quantity Controls */}
                   <div className="mt-auto pt-4 border-t border-gray-100">
                     <div className="flex items-center justify-between">
                       <span className="text-base font-semibold text-gray-600">
@@ -261,7 +412,6 @@ const CreateOrder = () => {
             ))}
         </div>
 
-        {/* Empty State */}
         {(!Array.isArray(allDresses) || allDresses.length === 0) && (
           <div className="text-center py-16">
             <svg
@@ -286,7 +436,6 @@ const CreateOrder = () => {
           </div>
         )}
 
-        {/* Create Order */}
         {Array.isArray(allDresses) && (
           <div className="text-center py-16">
             <button
@@ -296,7 +445,7 @@ const CreateOrder = () => {
                   document.getElementById("model") as HTMLDialogElement | null
                 )?.showModal()
               }
-              className="btn btn-md font-bold text-white bg-blue-500 hover:bg-blue-600 disabled:hovercursor-not-allowed disabled:bg-gray-400 transition-all duration-200"
+              className="btn btn-md font-bold text-white bg-blue-500 hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400 transition-all duration-200"
             >
               Create Order
             </button>
@@ -304,7 +453,7 @@ const CreateOrder = () => {
         )}
 
         <dialog id="model" className="modal">
-          <div className="modal-box max-w-3xl bg-white rounded-2xl shadow-xl">
+          <div className="modal-box max-w-4xl bg-white rounded-2xl shadow-xl">
             <form method="dialog">
               <button className="btn btn-sm btn-circle btn-ghost absolute right-3 top-3">
                 ✕
@@ -343,11 +492,11 @@ const CreateOrder = () => {
                   Dresses ({selectedDresses?.length})
                 </h4>
 
-                <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2">
+                <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
                   {selectedDresses.map((dress, index) => (
                     <div
                       key={index}
-                      className="p-3 border border-gray-200 rounded-xl bg-white shadow-sm"
+                      className="p-4 border border-gray-200 rounded-xl bg-white shadow-sm"
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div>
@@ -355,35 +504,70 @@ const CreateOrder = () => {
                             {dress.dressName}
                           </h5>
                           <p className="text-sm text-gray-600">
-                            ₹{dress.dressPrice} × {dress.qty || 1}
+                            ₹{dress.dressPrice} × {quantities[dress._id]}
                           </p>
                         </div>
                       </div>
 
+                      {/* Image Upload */}
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Upload Dress Image *
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) =>
+                            handleImageUpload(
+                              dress._id,
+                              e.target.files?.[0] || null
+                            )
+                          }
+                          className="file-input file-input-bordered file-input-sm w-full"
+                          required
+                        />
+                        {dressImages[dress._id] && (
+                          <p className="text-xs text-green-600 mt-1">
+                            ✓ {dressImages[dress._id]?.name}
+                          </p>
+                        )}
+                      </div>
+
                       {/* Measurements Grid */}
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                         {[
-                          "Neck",
-                          "Chest",
-                          "Waist",
-                          "Armhole",
-                          "Shoulder W",
-                          "Arm Length",
-                          "Waist Lower",
-                          "Hip",
-                          "Thigh",
-                          "Rise",
-                          "Inseam",
-                          "Outseam",
-                        ].map((label) => (
-                          <div key={label}>
+                          { key: "neck", label: "Neck" },
+                          { key: "bust", label: "Bust" },
+                          { key: "waist", label: "Waist" },
+                          { key: "armHole", label: "Armhole" },
+                          { key: "shoulderW", label: "Shoulder W" },
+                          { key: "armL", label: "Arm Length" },
+                          { key: "hip", label: "Hip" },
+                          { key: "thigh", label: "Thigh" },
+                          { key: "rise", label: "Rise" },
+                          { key: "inseam", label: "Inseam" },
+                          { key: "outseam", label: "Outseam" },
+                        ].map(({ key, label }) => (
+                          <div key={key}>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
-                              {label}
+                              {label} *
                             </label>
                             <input
                               className="input input-sm input-bordered w-full text-sm"
                               type="number"
+                              step="0.1"
                               placeholder="0"
+                              value={
+                                dressMeasurements[dress._id]?.[key]?.val || ""
+                              }
+                              onChange={(e) =>
+                                handleMeasurementChange(
+                                  dress._id,
+                                  key,
+                                  e.target.value
+                                )
+                              }
+                              required
                             />
                           </div>
                         ))}
@@ -401,48 +585,70 @@ const CreateOrder = () => {
                 <div className="space-y-2 text-sm text-gray-700">
                   <p>
                     <span className="font-medium">Total Before Discount:</span>{" "}
-                    ₹{totalBeforeDiscount}
+                    ₹{totalBeforeDiscount.toLocaleString("en-IN")}
                   </p>
-                  <p className="font-medium">Available Discounts:</p>
-                  <ul className="ml-4 list-disc">
-                    {selectedDresses.map((index) => (
-                      <li key={index} className="flex items-center gap-3 my-1">
-                        Discount {index + 1}
-                        <button className="btn btn-xs btn-outline btn-primary">
-                          Apply
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
 
-                  <p>
-                    <span className="font-medium">Total After Discount:</span> ₹
-                    {totalBeforeDiscount}
-                  </p>
+                  <div className="flex items-center gap-3">
+                    <label className="font-medium">Total After Discount:</label>
+                    <input
+                      type="number"
+                      className="input input-sm input-bordered w-32 text-sm"
+                      value={totalAfterDiscount}
+                      onChange={(e) =>
+                        setTotalAfterDiscount(Number(e.target.value))
+                      }
+                    />
+                  </div>
 
                   <div className="flex items-center gap-3">
                     <label className="font-medium">Extra Charges:</label>
                     <input
-                      type="text"
-                      className="input input-sm input-bordered w-28 text-sm"
+                      type="number"
+                      className="input input-sm input-bordered w-32 text-sm"
                       placeholder="₹0"
+                      value={extraCharges}
+                      onChange={(e) => setExtraCharges(Number(e.target.value))}
                     />
                   </div>
 
                   <div>
                     <label className="font-medium">Remarks:</label>
                     <textarea
-                      placeholder="Reason for extra charges..."
+                      placeholder="Add any special instructions..."
                       className="textarea textarea-bordered w-full mt-1 text-sm"
                       rows={3}
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
                     ></textarea>
+                  </div>
+
+                  <div className="pt-2 border-t mt-3">
+                    <p className="text-lg font-bold text-gray-800">
+                      Final Total: ₹
+                      {(totalAfterDiscount + extraCharges).toLocaleString(
+                        "en-IN"
+                      )}
+                    </p>
                   </div>
                 </div>
               </div>
 
               {/* Action Buttons */}
               <div className="flex justify-end gap-3 pt-3 border-t">
-                <button className="btn btn-primary">Confirm Order</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleConfirmOrder}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="loading loading-spinner loading-sm"></span>
+                      Creating...
+                    </>
+                  ) : (
+                    "Confirm Order"
+                  )}
+                </button>
               </div>
             </div>
           </div>

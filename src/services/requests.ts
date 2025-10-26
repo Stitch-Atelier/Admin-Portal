@@ -103,10 +103,43 @@ const FetchAllDresses: any = async () => {
   }
 };
 
+const CreateOrderWithImages = async (orderData: any, images: File[]) => {
+  try {
+    // Create FormData for multipart/form-data
+    const formData = new FormData();
+
+    // Add order data as JSON string
+    formData.append("orderData", JSON.stringify(orderData));
+
+    // Add all dress images
+    images.forEach((image) => {
+      formData.append("dressImages", image);
+    });
+
+    // Make the request
+    const response = await service.post("/users/order", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    return {
+      response: response.data,
+      status: response.status,
+    };
+  } catch (error: any) {
+    return {
+      response: error.response?.data || { message: "Failed to create order" },
+      status: error.response?.status || 500,
+    };
+  }
+};
+
 export {
   LoginAdmin,
   RefreshAuthToken,
   LogoutAdmin,
   FetchAddress,
+  CreateOrderWithImages,
   FetchAllDresses,
 };
