@@ -8,6 +8,7 @@ import UserLay from "./components/dashboard/user/UserLay";
 import CreateUser from "./components/dashboard/user/CreateUser";
 import CreateOrder from "./components/dashboard/order/CreateOrder";
 import OrderLay from "./components/dashboard/order/OrderLay";
+import UpdateOrder from "./components/dashboard/order/UpdateOrder";
 
 const router = createBrowserRouter([
   {
@@ -42,6 +43,12 @@ const router = createBrowserRouter([
             path: "create",
             element: (
               <RouteGuard requiresAuth={true} element={<CreateOrder />} />
+            ),
+          },
+          {
+            path: "update",
+            element: (
+              <RouteGuard requiresAuth={true} element={<UpdateOrder />} />
             ),
           },
         ],

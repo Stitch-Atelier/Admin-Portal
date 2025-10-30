@@ -135,6 +135,32 @@ const CreateOrderWithImages = async (orderData: any, images: File[]) => {
   }
 };
 
+const FetchPendingOrders = async () => {
+  try {
+    const response = await service.get(
+      `${import.meta.env.VITE_API_URL}/users/order`, // ✅ corrected endpoint
+      { withCredentials: true }
+    );
+
+    return {
+      status: response.status,
+      response: response.data.data, // ✅ only the array of orders
+    };
+  } catch (error: any) {
+    if (error.response) {
+      toast.error(
+        error.response.data.message || "Failed to fetch pending orders"
+      );
+      console.error("Error:", error.response.data.message);
+      return { status: error.response.status, response: [] };
+    } else {
+      console.error("Network or unknown error:", error);
+      toast.error("Network error occurred");
+      return { status: 500, response: [] };
+    }
+  }
+};
+
 export {
   LoginAdmin,
   RefreshAuthToken,
@@ -142,4 +168,5 @@ export {
   FetchAddress,
   CreateOrderWithImages,
   FetchAllDresses,
+  FetchPendingOrders,
 };

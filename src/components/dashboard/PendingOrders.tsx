@@ -1,40 +1,97 @@
+import { useEffect, useState } from "react";
+import { FetchPendingOrders } from "../../services/requests";
+
 const PendingOrders = () => {
+  const [orders, setOrders] = useState<any>([]);
+  const [loading, setLoading] = useState(false);
+
+  const GetPendingOrders = async () => {
+    setLoading(true);
+    const res = await FetchPendingOrders();
+
+    if (res?.status === 200 && Array.isArray(res.response)) {
+      setOrders(res?.response);
+    } else {
+      setOrders([]);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    GetPendingOrders();
+  }, []);
+
   return (
-    <div className="overflow-x-auto rounded-box border border-base-content/5 bg-base-100">
-      <table className="table">
-        {/* head */}
-        <thead className="bg-base-200">
-          <tr>
-            <th></th>
-            <th>Name</th>
-            <th>Job</th>
-            <th>Favorite Color</th>
-          </tr>
-        </thead>
-        <tbody>
-          {/* row 1 */}
-          <tr>
-            <th>1</th>
-            <td>Cy Ganderton</td>
-            <td>Quality Control Specialist</td>
-            <td>Blue</td>
-          </tr>
-          {/* row 2 */}
-          <tr>
-            <th>2</th>
-            <td>Hart Hagerty</td>
-            <td>Desktop Support Technician</td>
-            <td>Purple</td>
-          </tr>
-          {/* row 3 */}
-          <tr>
-            <th>3</th>
-            <td>Brice Swyre</td>
-            <td>Tax Accountant</td>
-            <td>Red</td>
-          </tr>
-        </tbody>
-      </table>
+    <div className="p-4">
+      <h2 className="text-xl font-semibold mb-4">Latest Pending Orders</h2>
+
+      <div className="overflow-x-auto rounded-box border border-base-content/5 bg-base-100 shadow">
+        <table className="table table-zebra w-full">
+          {/* head */}
+          <thead className="bg-base-200">
+            <tr>
+              <th>#</th>
+              <th>Order ID</th>
+              <th>Customer</th>
+              <th>Phone</th>
+              <th>Dress Count</th>
+              <th>Amount (₹)</th>
+              <th>Status</th>
+              <th>Created At</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={8} className="text-center py-4">
+                  Loading...
+                </td>
+              </tr>
+            ) : orders.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="text-center py-4">
+                  No pending orders found
+                </td>
+              </tr>
+            ) : (
+              orders.map((order: any, index: number) => (
+                <tr key={order._id}>
+                  <td>{index + 1}</td>
+                  <td className="font-medium">{order.orderID}</td>
+                  <td>{order.userId?.name || "—"}</td>
+                  <td>{order.userId?.phone || "—"}</td>
+                  <td>{order.dressCount}</td>
+                  <td>
+                    {order.amountAfterDiscount ?? order.amountBeforeDiscount}
+                  </td>
+                  <td>
+                    <span
+                      className={`badge ${
+                        order.status === "pending"
+                          ? "badge-warning"
+                          : "badge-success"
+                      }`}
+                    >
+                      {order.status}
+                    </span>
+                  </td>
+                  <td>
+                    {new Date(order.createdAt).toLocaleString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
