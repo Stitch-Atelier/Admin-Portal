@@ -19,27 +19,22 @@ const Navbar = () => {
   return (
     <div className="flex justify-between items-center bg-base-200 shadow-sm py-2">
       <div className="px-4 font-bold">
-        <h1 className="text-xl">Stitch Ateliers</h1>
+        <h1 className="text-xl">
+          <Link
+            to="/dashboard"
+            className="p-2 hover:underline hover:underline-offset-2  hover:font-semibold transition-all"
+          >
+            Stitch Ateliers
+          </Link>
+        </h1>
       </div>
       <div className="flex items-center gap-4 mr-4">
         <ul className="flex items-center gap-4">
           <Link
-            to="/dashboard/customer/create"
-            className="p-2 hover:underline hover:underline-offset-2  hover:font-semibold transition-all"
-          >
-            Create Customer
-          </Link>
-          <Link
             to="/dashboard/order/create"
             className="p-2 hover:underline hover:underline-offset-2  hover:font-semibold transition-all"
           >
-            Create Order
-          </Link>
-          <Link
-            to="/dashboard/order/update"
-            className="p-2 hover:underline hover:underline-offset-2  hover:font-semibold transition-all"
-          >
-            Update Order
+            Add Order
           </Link>
         </ul>
         <button

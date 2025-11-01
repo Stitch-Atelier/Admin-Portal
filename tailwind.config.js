@@ -8,6 +8,7 @@ export default {
       },
       fontFamily: {
         Inconsolata: ["Inconsolata", "sans-serif"],
+        Jost: ["Jost", "sans-serif"],
       },
     },
   },

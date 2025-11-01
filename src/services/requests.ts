@@ -135,10 +135,38 @@ const CreateOrderWithImages = async (orderData: any, images: File[]) => {
   }
 };
 
-const FetchPendingOrders = async () => {
+const FetchOrders = async (status: string) => {
   try {
     const response = await service.get(
-      `${import.meta.env.VITE_API_URL}/users/order`, // ✅ corrected endpoint
+      `${import.meta.env.VITE_API_URL}/users/order/status/${status}`,
+      {
+        withCredentials: true,
+      }
+    );
+
+    return {
+      status: response.status,
+      response: response.data.data, // ✅ only the array of orders
+    };
+  } catch (error: any) {
+    if (error.response) {
+      toast.error(
+        error.response.data.message || "Failed to fetch pending orders"
+      );
+      console.error("Error:", error.response.data.message);
+      return { status: error.response.status, response: [] };
+    } else {
+      console.error("Network or unknown error:", error);
+      toast.error("Network error occurred");
+      return { status: 500, response: [] };
+    }
+  }
+};
+
+const FetchOrderById = async (orderId: string) => {
+  try {
+    const response = await service.get(
+      `${import.meta.env.VITE_API_URL}/users/order/${orderId}`, // ✅ corrected endpoint
       { withCredentials: true }
     );
 
@@ -161,6 +189,24 @@ const FetchPendingOrders = async () => {
   }
 };
 
+const UpdateOrderById = async (orderId: string, updatedData: any) => {
+  try {
+    const res = await service.patch(
+      `${import.meta.env.VITE_API_URL}/users/order/${orderId}`,
+      updatedData,
+      { withCredentials: true }
+    );
+
+    if (res.status === 200) {
+      toast.success("Order updated successfully!");
+      return { status: 200, response: res.data.data };
+    }
+  } catch (err: any) {
+    console.error("Error updating order:", err);
+    toast.error(err.response?.data?.message || "Failed to update order.");
+    return { status: err.response?.status || 500, response: null };
+  }
+};
 export {
   LoginAdmin,
   RefreshAuthToken,
@@ -168,5 +214,7 @@ export {
   FetchAddress,
   CreateOrderWithImages,
   FetchAllDresses,
-  FetchPendingOrders,
+  FetchOrders,
+  FetchOrderById,
+  UpdateOrderById,
 };

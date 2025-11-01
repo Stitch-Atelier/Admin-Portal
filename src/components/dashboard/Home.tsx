@@ -1,11 +1,14 @@
 import PendingOrders from "./PendingOrders";
+import CompletedOrders from "./CompletedOrders";
 const Home = () => {
   return (
     <>
-      <section className="grid my-10">
+      <section className="grid my-10 space-y-4">
         <div className="mx-8 border p-8 rounded shadow ">
-          <h1 className="pb-4 font-semibold">Pending Orders</h1>
           <PendingOrders />
+        </div>
+        <div className="mx-8 border p-8 rounded shadow ">
+          <CompletedOrders />
         </div>
       </section>
     </>
