@@ -4,6 +4,7 @@ import {
   FetchAddress,
   FetchAllDresses,
   CreateOrderWithImages,
+  FetchAllDicounts,
 } from "../../../services/requests";
 import toast from "react-hot-toast";
 import { FiMinus, FiPlus } from "react-icons/fi";
@@ -12,6 +13,7 @@ const CreateOrder = () => {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [addressInfo, setAddressInfo] = useState<any>(null);
   const [allDresses, setAllDresses] = useState<any>(null);
+  const [allDiscounts, setAllDiscounts] = useState<any>(null);
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
 
   // Changed: Each dress instance has a unique instanceId
@@ -20,6 +22,9 @@ const CreateOrder = () => {
   const [totalAfterDiscount, setTotalAfterDiscount] = useState<number>(0);
   const [extraCharges, setExtraCharges] = useState<number>(0);
   const [remarks, setRemarks] = useState<string>("");
+
+  // NEW: Selected discount state
+  const [selectedDiscount, setSelectedDiscount] = useState<any>(null);
 
   // Store images for each dress instance (using instanceId)
   const [dressImages, setDressImages] = useState<{
@@ -38,6 +43,29 @@ const CreateOrder = () => {
     return `dress_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
+  // NEW: Calculate discount amount
+  const calculateDiscountedAmount = (baseAmount: number, discount: any) => {
+    if (!discount) return baseAmount;
+
+    return baseAmount - (baseAmount * discount?.discountPer) / 100;
+  };
+
+  // NEW: Handle discount selection
+  const handleDiscountChange = (discount: any) => {
+    setSelectedDiscount(discount);
+    const discountedAmount = calculateDiscountedAmount(
+      totalBeforeDiscount,
+      discount
+    );
+    setTotalAfterDiscount(discountedAmount);
+  };
+
+  // NEW: Clear discount
+  const clearDiscount = () => {
+    setSelectedDiscount(null);
+    setTotalAfterDiscount(totalBeforeDiscount);
+  };
+
   const handleIncrease = (id: string) => {
     setQuantities((prev) => ({
       ...prev,
@@ -51,17 +79,22 @@ const CreateOrder = () => {
 
     const newDress = {
       ...dressOBJ,
-      instanceId: instanceId, // Add unique instance ID
+      instanceId: instanceId,
       dressStatus: "fabric picked",
       dressPic: "",
     };
 
-    setTotalBeforeDiscount(
-      (prev) => prev + (dressOBJ?.dressPrice ? dressOBJ.dressPrice : 0)
+    const newTotalBefore =
+      totalBeforeDiscount + (dressOBJ?.dressPrice ? dressOBJ.dressPrice : 0);
+    setTotalBeforeDiscount(newTotalBefore);
+
+    // Recalculate with existing discount
+    const newTotalAfter = calculateDiscountedAmount(
+      newTotalBefore,
+      selectedDiscount
     );
-    setTotalAfterDiscount(
-      (prev) => prev + (dressOBJ?.dressPrice ? dressOBJ.dressPrice : 0)
-    );
+    setTotalAfterDiscount(newTotalAfter);
+
     setSelectedDresses((prev) => [...prev, newDress]);
 
     // Initialize empty measurement for this dress instance
@@ -127,8 +160,15 @@ const CreateOrder = () => {
       return copy;
     });
 
-    setTotalBeforeDiscount((prev) => Math.max(0, prev - price));
-    setTotalAfterDiscount((prev) => Math.max(0, prev - price));
+    const newTotalBefore = Math.max(0, totalBeforeDiscount - price);
+    setTotalBeforeDiscount(newTotalBefore);
+
+    // Recalculate with existing discount
+    const newTotalAfter = calculateDiscountedAmount(
+      newTotalBefore,
+      selectedDiscount
+    );
+    setTotalAfterDiscount(newTotalAfter);
   };
 
   // Handle image upload for a specific dress instance
@@ -225,6 +265,7 @@ const CreateOrder = () => {
         extraCharges: extraCharges,
         userId: selectedUser._id,
         remarks: remarks,
+        discountId: selectedDiscount?._id || null,
       };
 
       // Prepare images array (maintain order matching dresses array)
@@ -250,6 +291,7 @@ const CreateOrder = () => {
         setTotalAfterDiscount(0);
         setExtraCharges(0);
         setRemarks("");
+        setSelectedDiscount(null);
 
         // Close modal
         (document.getElementById("model") as HTMLDialogElement)?.close();
@@ -281,10 +323,20 @@ const CreateOrder = () => {
     }
   };
 
+  // Renamed local function so it doesn't shadow the imported FetchAllDicounts
+  const FetchAllDicountsLocal = async () => {
+    const { response, status } = await FetchAllDicounts();
+    if (status === 200) {
+      setAllDiscounts(response?.data);
+      toast.success("Discounts fetched successfully!");
+    }
+  };
+
   useEffect(() => {
     if (selectedUser) {
       GetAddressInfo(selectedUser?._id);
       GetAllDresses();
+      FetchAllDicountsLocal();
     }
   }, [selectedUser]);
 
@@ -510,7 +562,7 @@ const CreateOrder = () => {
                 <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
                   {selectedDresses.map((dress, index) => (
                     <div
-                      key={dress.instanceId} // Use instanceId for key
+                      key={dress.instanceId}
                       className="p-4 border border-gray-200 rounded-xl bg-white shadow-sm"
                     >
                       <div className="flex items-center justify-between mb-3">
@@ -593,6 +645,74 @@ const CreateOrder = () => {
                 </div>
               </div>
 
+              {/* NEW: Discount Selection Section */}
+              {Array.isArray(allDiscounts) && allDiscounts.length > 0 && (
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                  <h4 className="text-lg font-semibold mb-3 text-gray-700">
+                    Apply Discount
+                  </h4>
+                  <div className="space-y-3">
+                    {/* No discount option */}
+                    <label className="flex items-center p-3 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 transition-colors">
+                      <input
+                        type="radio"
+                        name="discount"
+                        className="radio radio-primary mr-3"
+                        checked={!selectedDiscount}
+                        onChange={clearDiscount}
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-800">No Discount</p>
+                        <p className="text-xs text-gray-500">Original price</p>
+                      </div>
+                    </label>
+
+                    {/* Available discounts */}
+                    {allDiscounts.map((discount: any) => (
+                      <label
+                        key={discount._id}
+                        className={`flex items-center p-3 bg-white border-2 rounded-lg cursor-pointer hover:border-blue-300 transition-colors ${
+                          selectedDiscount?._id === discount._id
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="discount"
+                          className="radio radio-primary mr-3"
+                          checked={selectedDiscount?._id === discount._id}
+                          onChange={() => handleDiscountChange(discount)}
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-800">
+                              {discount?.discountDesc}
+                            </p>
+                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                              {discount.discountPer}% OFF
+                            </span>
+                          </div>
+                          {discount.discountDesc && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {discount.discountDesc}
+                            </p>
+                          )}
+                          {selectedDiscount?._id === discount._id && (
+                            <p className="text-xs text-blue-600 font-medium mt-1">
+                              You save: ₹
+                              {(
+                                totalBeforeDiscount - totalAfterDiscount
+                              ).toLocaleString("en-IN")}
+                            </p>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Pricing Section */}
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                 <h4 className="text-lg font-semibold mb-3 text-gray-700">
@@ -604,17 +724,20 @@ const CreateOrder = () => {
                     ₹{totalBeforeDiscount.toLocaleString("en-IN")}
                   </p>
 
-                  <div className="flex items-center gap-3">
-                    <label className="font-medium">Total After Discount:</label>
-                    <input
-                      type="number"
-                      className="input input-sm input-bordered w-32 text-sm"
-                      value={totalAfterDiscount}
-                      onChange={(e) =>
-                        setTotalAfterDiscount(Number(e.target.value))
-                      }
-                    />
-                  </div>
+                  {selectedDiscount && (
+                    <p className="text-green-600">
+                      <span className="font-medium">Discount Applied:</span>{" "}
+                      {selectedDiscount.discountDesc} - You saved ₹
+                      {(
+                        totalBeforeDiscount - totalAfterDiscount
+                      ).toLocaleString("en-IN")}
+                    </p>
+                  )}
+
+                  <p className="text-lg font-semibold">
+                    <span className="font-medium">Total After Discount:</span> ₹
+                    {totalAfterDiscount.toLocaleString("en-IN")}
+                  </p>
 
                   <div className="flex items-center gap-3">
                     <label className="font-medium">Extra Charges:</label>

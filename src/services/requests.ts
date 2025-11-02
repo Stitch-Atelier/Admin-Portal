@@ -103,6 +103,26 @@ const FetchAllDresses: any = async () => {
   }
 };
 
+const FetchAllDicounts: any = async () => {
+  try {
+    const response = await service.get(
+      `${import.meta.env.VITE_API_URL}/users/discount`,
+      { withCredentials: true }
+    );
+    return {
+      response: response?.data,
+      status: response?.status,
+    };
+  } catch (error: any) {
+    if (error.response) {
+      console.error("Error message:", error.response.data.message);
+      toast.error(error.response.data.message);
+    } else {
+      console.error("Something went wrong");
+    }
+  }
+};
+
 const CreateOrderWithImages = async (orderData: any, images: File[]) => {
   try {
     // Create FormData for multipart/form-data
@@ -212,6 +232,7 @@ export {
   RefreshAuthToken,
   LogoutAdmin,
   FetchAddress,
+  FetchAllDicounts,
   CreateOrderWithImages,
   FetchAllDresses,
   FetchOrders,
