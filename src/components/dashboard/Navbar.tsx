@@ -36,6 +36,12 @@ const Navbar = () => {
           >
             Add Order
           </Link>
+          <Link
+            to="/dashboard/order/find-order"
+            className="p-2 hover:underline hover:underline-offset-2  hover:font-semibold transition-all"
+          >
+            Find Order
+          </Link>
         </ul>
         <button
           onClick={handleLogout}

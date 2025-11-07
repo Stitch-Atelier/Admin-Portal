@@ -227,6 +227,16 @@ const UpdateOrderById = async (orderId: string, updatedData: any) => {
     return { status: err.response?.status || 500, response: null };
   }
 };
+
+export const FetchOrdersByUser = async (userId: string) => {
+  try {
+    const response = await service.get(`/users/order/user-order/${userId}`);
+    return { status: response.status, data: response.data.data };
+  } catch (error: any) {
+    throw error.response || error;
+  }
+};
+
 export {
   LoginAdmin,
   RefreshAuthToken,

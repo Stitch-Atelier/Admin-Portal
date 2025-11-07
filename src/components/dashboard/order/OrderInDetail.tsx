@@ -162,7 +162,7 @@ const OrderInDetail = () => {
             </>
           )}
 
-          {order.status !== "completed" && (
+          {order.status === "pending" && (
             <button
               onClick={MarkAsCompleted}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"

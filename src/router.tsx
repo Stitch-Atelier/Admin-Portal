@@ -10,6 +10,7 @@ import CreateOrder from "./components/dashboard/order/CreateOrder";
 import OrderLay from "./components/dashboard/order/OrderLay";
 import UpdateOrder from "./components/dashboard/order/UpdateOrder";
 import OrderInDetail from "./components/dashboard/order/OrderInDetail";
+import UserOrderSearch from "./components/dashboard/order/UserSearchOrder";
 
 const router = createBrowserRouter([
   {
@@ -57,6 +58,16 @@ const router = createBrowserRouter([
             element: (
               <RouteGuard requiresAuth={true} element={<OrderInDetail />} />
             ),
+          },
+          {
+            path: "find-order",
+            element: (
+              <RouteGuard requiresAuth={true} element={<UserOrderSearch />} />
+            ),
+          },
+          {
+            path: "*",
+            element: <div>No Component Found</div>,
           },
         ],
       },
