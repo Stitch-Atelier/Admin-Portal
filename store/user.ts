@@ -50,9 +50,7 @@ const useUserStore = create<UserStore>()(
       },
 
       // ✅ Signup placeholder
-      signupFunc: (data) => {
-        console.log("Signup data:", data);
-      },
+      signupFunc: () => {},
     }),
     {
       name: "user-storage",

@@ -11,6 +11,7 @@ import OrderLay from "./components/dashboard/order/OrderLay";
 import UpdateOrder from "./components/dashboard/order/UpdateOrder";
 import OrderInDetail from "./components/dashboard/order/OrderInDetail";
 import UserOrderSearch from "./components/dashboard/order/UserSearchOrder";
+import QueryHome from "./components/dashboard/queries/QueryHome";
 
 const router = createBrowserRouter([
   {
@@ -64,6 +65,10 @@ const router = createBrowserRouter([
             element: (
               <RouteGuard requiresAuth={true} element={<UserOrderSearch />} />
             ),
+          },
+          {
+            path: "queries",
+            element: <RouteGuard requiresAuth={true} element={<QueryHome />} />,
           },
           {
             path: "*",

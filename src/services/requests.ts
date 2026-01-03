@@ -228,9 +228,18 @@ const UpdateOrderById = async (orderId: string, updatedData: any) => {
   }
 };
 
-export const FetchOrdersByUser = async (userId: string) => {
+const FetchOrdersByUser = async (userId: string) => {
   try {
     const response = await service.get(`/users/order/user-order/${userId}`);
+    return { status: response.status, data: response.data.data };
+  } catch (error: any) {
+    throw error.response || error;
+  }
+};
+
+const FetchOrderQueries = async () => {
+  try {
+    const response = await service.get(`/users/order/user/queries`);
     return { status: response.status, data: response.data.data };
   } catch (error: any) {
     throw error.response || error;
@@ -248,4 +257,6 @@ export {
   FetchOrders,
   FetchOrderById,
   UpdateOrderById,
+  FetchOrdersByUser,
+  FetchOrderQueries,
 };
