@@ -8,6 +8,7 @@ const DRESS_STATUSES = [
   "cutting",
   "top stitch",
   "bottom stitch",
+  "fit trial",
   "hemming",
   "stitched",
 ];
@@ -136,10 +137,10 @@ const OrderInDetail = () => {
               order.status === "pending"
                 ? "bg-yellow-100 text-yellow-700"
                 : order.status === "completed"
-                ? "bg-green-100 text-green-700"
-                : order.status === "cancelled"
-                ? "bg-red-100 text-red-700"
-                : "bg-gray-100 text-gray-700"
+                  ? "bg-green-100 text-green-700"
+                  : order.status === "cancelled"
+                    ? "bg-red-100 text-red-700"
+                    : "bg-gray-100 text-gray-700"
             }`}
           >
             {order.status}
@@ -349,7 +350,7 @@ const OrderInDetail = () => {
                               {value.type}
                             </p>
                           </div>
-                        )
+                        ),
                       )}
                     </div>
                   </div>

@@ -16,54 +16,57 @@ const CreateOrder = () => {
   const [allDiscounts, setAllDiscounts] = useState<any>(null);
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
 
-  // Changed: Each dress instance has a unique instanceId
   const [selectedDresses, setSelectedDresses] = useState<any[]>([]);
-  const [totalBeforeDiscount, setTotalBeforeDiscount] = useState<number>(0);
-  const [totalAfterDiscount, setTotalAfterDiscount] = useState<number>(0);
+  const [baseTotal, setBaseTotal] = useState<number>(0); // Renamed for clarity
   const [extraCharges, setExtraCharges] = useState<number>(0);
   const [remarks, setRemarks] = useState<string>("");
 
-  // NEW: Selected discount state
   const [selectedDiscount, setSelectedDiscount] = useState<any>(null);
 
-  // Store images for each dress instance (using instanceId)
   const [dressImages, setDressImages] = useState<{
     [instanceId: string]: File | null;
   }>({});
 
-  // Store measurements for each dress instance (using instanceId)
   const [dressMeasurements, setDressMeasurements] = useState<{
     [instanceId: string]: any;
   }>({});
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Generate unique instance ID
   const generateInstanceId = () => {
     return `dress_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  // NEW: Calculate discount amount
-  const calculateDiscountedAmount = (baseAmount: number, discount: any) => {
-    if (!discount) return baseAmount;
+  // Calculate discount amount on final total (base + extra charges)
+  const calculateDiscountedAmount = (
+    baseAmount: number,
+    extraCharges: number,
+    discount: any,
+  ) => {
+    const finalBeforeDiscount = baseAmount + extraCharges;
+    if (!discount) return finalBeforeDiscount;
 
-    return baseAmount - (baseAmount * discount?.discountPer) / 100;
+    const discountAmount = (finalBeforeDiscount * discount.discountPer) / 100;
+    return finalBeforeDiscount - discountAmount;
   };
 
-  // NEW: Handle discount selection
+  // Calculate values for display
+  const finalBeforeDiscount = baseTotal + extraCharges;
+  const finalAfterDiscount = calculateDiscountedAmount(
+    baseTotal,
+    extraCharges,
+    selectedDiscount,
+  );
+  const discountSavings = finalBeforeDiscount - finalAfterDiscount;
+
+  // Handle discount selection
   const handleDiscountChange = (discount: any) => {
     setSelectedDiscount(discount);
-    const discountedAmount = calculateDiscountedAmount(
-      totalBeforeDiscount,
-      discount
-    );
-    setTotalAfterDiscount(discountedAmount);
   };
 
-  // NEW: Clear discount
+  // Clear discount
   const clearDiscount = () => {
     setSelectedDiscount(null);
-    setTotalAfterDiscount(totalBeforeDiscount);
   };
 
   const handleIncrease = (id: string) => {
@@ -73,8 +76,6 @@ const CreateOrder = () => {
     }));
 
     const dressOBJ = allDresses.find((dress: any) => dress._id === id);
-
-    // Create unique instance ID for this dress
     const instanceId = generateInstanceId();
 
     const newDress = {
@@ -84,20 +85,9 @@ const CreateOrder = () => {
       dressPic: "",
     };
 
-    const newTotalBefore =
-      totalBeforeDiscount + (dressOBJ?.dressPrice ? dressOBJ.dressPrice : 0);
-    setTotalBeforeDiscount(newTotalBefore);
-
-    // Recalculate with existing discount
-    const newTotalAfter = calculateDiscountedAmount(
-      newTotalBefore,
-      selectedDiscount
-    );
-    setTotalAfterDiscount(newTotalAfter);
-
+    setBaseTotal((prev) => prev + (dressOBJ?.dressPrice || 0));
     setSelectedDresses((prev) => [...prev, newDress]);
 
-    // Initialize empty measurement for this dress instance
     setDressMeasurements((prev) => ({
       ...prev,
       [instanceId]: {
@@ -135,7 +125,6 @@ const CreateOrder = () => {
       return next;
     });
 
-    // Remove the LAST instance of this dress from selectedDresses
     setSelectedDresses((prev) => {
       const lastIndex = prev.map((item) => item._id).lastIndexOf(id);
       if (lastIndex === -1) return prev;
@@ -143,7 +132,6 @@ const CreateOrder = () => {
       const copy = [...prev];
       const removedDress = copy[lastIndex];
 
-      // Remove image and measurements for this specific instance
       setDressImages((prevImages) => {
         const newImages = { ...prevImages };
         delete newImages[removedDress.instanceId];
@@ -160,18 +148,9 @@ const CreateOrder = () => {
       return copy;
     });
 
-    const newTotalBefore = Math.max(0, totalBeforeDiscount - price);
-    setTotalBeforeDiscount(newTotalBefore);
-
-    // Recalculate with existing discount
-    const newTotalAfter = calculateDiscountedAmount(
-      newTotalBefore,
-      selectedDiscount
-    );
-    setTotalAfterDiscount(newTotalAfter);
+    setBaseTotal((prev) => Math.max(0, prev - price));
   };
 
-  // Handle image upload for a specific dress instance
   const handleImageUpload = (instanceId: string, file: File | null) => {
     setDressImages((prev) => ({
       ...prev,
@@ -179,11 +158,10 @@ const CreateOrder = () => {
     }));
   };
 
-  // Handle measurement change for a specific dress instance
   const handleMeasurementChange = (
     instanceId: string,
     field: string,
-    value: string
+    value: string,
   ) => {
     setDressMeasurements((prev) => ({
       ...prev,
@@ -197,16 +175,13 @@ const CreateOrder = () => {
     }));
   };
 
-  // Validate order before submission
   const validateOrder = (): boolean => {
-    // Check if all dress instances have images
     for (const dress of selectedDresses) {
       if (!dressImages[dress.instanceId]) {
         toast.error(`Please upload image for ${dress.dressName}`);
         return false;
       }
 
-      // Check if all measurements are filled
       const measurements = dressMeasurements[dress.instanceId];
       if (!measurements) {
         toast.error(`Please fill measurements for ${dress.dressName}`);
@@ -230,7 +205,7 @@ const CreateOrder = () => {
       for (const field of requiredFields) {
         if (!measurements[field]?.val || measurements[field].val === "") {
           toast.error(
-            `Please fill ${field} measurement for ${dress.dressName}`
+            `Please fill ${field} measurement for ${dress.dressName}`,
           );
           return false;
         }
@@ -240,14 +215,12 @@ const CreateOrder = () => {
     return true;
   };
 
-  // Submit order
   const handleConfirmOrder = async () => {
     if (!validateOrder()) return;
 
     setIsSubmitting(true);
 
     try {
-      // Prepare order data
       const dressesData = selectedDresses.map((dress) => ({
         dressId: dress._id,
         dressName: dress.dressName,
@@ -260,40 +233,35 @@ const CreateOrder = () => {
       const orderData = {
         dresses: dressesData,
         address: addressInfo._id,
-        amountBeforeDiscount: totalBeforeDiscount,
-        amountAfterDiscount: totalAfterDiscount,
+        amountBeforeDiscount: finalBeforeDiscount,
+        amountAfterDiscount: finalAfterDiscount,
         extraCharges: extraCharges,
         userId: selectedUser._id,
         remarks: remarks,
         discountId: selectedDiscount?._id || null,
       };
 
-      // Prepare images array (maintain order matching dresses array)
       const imagesArray = selectedDresses.map(
-        (dress) => dressImages[dress.instanceId] as File
+        (dress) => dressImages[dress.instanceId] as File,
       );
 
-      // Call API
       const { response, status } = await CreateOrderWithImages(
         orderData,
-        imagesArray
+        imagesArray,
       );
 
       if (status === 201) {
         toast.success("Order created successfully!");
 
-        // Reset form
         setSelectedDresses([]);
         setQuantities({});
         setDressImages({});
         setDressMeasurements({});
-        setTotalBeforeDiscount(0);
-        setTotalAfterDiscount(0);
+        setBaseTotal(0);
         setExtraCharges(0);
         setRemarks("");
         setSelectedDiscount(null);
 
-        // Close modal
         (document.getElementById("model") as HTMLDialogElement)?.close();
       } else {
         toast.error(response?.message || "Failed to create order");
@@ -306,7 +274,6 @@ const CreateOrder = () => {
     }
   };
 
-  // Fetch Address Info
   const GetAddressInfo = async (userId: string) => {
     const { response, status } = await FetchAddress(userId);
     if (status === 200) {
@@ -323,7 +290,6 @@ const CreateOrder = () => {
     }
   };
 
-  // Renamed local function so it doesn't shadow the imported FetchAllDicounts
   const FetchAllDicountsLocal = async () => {
     const { response, status } = await FetchAllDicounts();
     if (status === 200) {
@@ -403,7 +369,6 @@ const CreateOrder = () => {
         </div>
       )}
 
-      {/* Order Form */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">
           Select Your Dresses
@@ -532,7 +497,6 @@ const CreateOrder = () => {
             </h3>
 
             <div className="space-y-4">
-              {/* User Info */}
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                 <h4 className="text-lg font-semibold mb-3 text-gray-700">
                   Customer Details
@@ -553,7 +517,6 @@ const CreateOrder = () => {
                 </p>
               </div>
 
-              {/* Dresses Section */}
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                 <h4 className="text-lg font-semibold mb-3 text-gray-700">
                   Dresses ({selectedDresses?.length})
@@ -576,7 +539,6 @@ const CreateOrder = () => {
                         </div>
                       </div>
 
-                      {/* Image Upload */}
                       <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Upload Dress Image *
@@ -587,7 +549,7 @@ const CreateOrder = () => {
                           onChange={(e) =>
                             handleImageUpload(
                               dress.instanceId,
-                              e.target.files?.[0] || null
+                              e.target.files?.[0] || null,
                             )
                           }
                           className="file-input file-input-bordered file-input-sm w-full"
@@ -600,7 +562,6 @@ const CreateOrder = () => {
                         )}
                       </div>
 
-                      {/* Measurements Grid */}
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                         {[
                           { key: "neck", label: "Neck" },
@@ -632,7 +593,7 @@ const CreateOrder = () => {
                                 handleMeasurementChange(
                                   dress.instanceId,
                                   key,
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               required
@@ -645,14 +606,44 @@ const CreateOrder = () => {
                 </div>
               </div>
 
-              {/* NEW: Discount Selection Section */}
+              {/* Pricing Section - Updated */}
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <h4 className="text-lg font-semibold mb-3 text-gray-700">
+                  Billing Summary
+                </h4>
+                <div className="space-y-2 text-sm text-gray-700">
+                  <p>
+                    <span className="font-medium">Dresses Total:</span> ₹
+                    {baseTotal.toLocaleString("en-IN")}
+                  </p>
+
+                  <div className="flex items-center gap-3">
+                    <label className="font-medium">Extra Charges:</label>
+                    <input
+                      type="number"
+                      className="input input-sm input-bordered w-32 text-sm"
+                      placeholder="₹0"
+                      value={extraCharges}
+                      onChange={(e) => setExtraCharges(Number(e.target.value))}
+                    />
+                  </div>
+
+                  <p className="text-base font-semibold pt-2 border-t">
+                    <span className="font-medium">
+                      Subtotal (Before Discount):
+                    </span>{" "}
+                    ₹{finalBeforeDiscount.toLocaleString("en-IN")}
+                  </p>
+                </div>
+              </div>
+
+              {/* Discount Selection Section - Updated */}
               {Array.isArray(allDiscounts) && allDiscounts.length > 0 && (
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                   <h4 className="text-lg font-semibold mb-3 text-gray-700">
                     Apply Discount
                   </h4>
                   <div className="space-y-3">
-                    {/* No discount option */}
                     <label className="flex items-center p-3 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 transition-colors">
                       <input
                         type="radio"
@@ -667,7 +658,6 @@ const CreateOrder = () => {
                       </div>
                     </label>
 
-                    {/* Available discounts */}
                     {allDiscounts.map((discount: any) => (
                       <label
                         key={discount._id}
@@ -693,17 +683,10 @@ const CreateOrder = () => {
                               {discount.discountPer}% OFF
                             </span>
                           </div>
-                          {discount.discountDesc && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              {discount.discountDesc}
-                            </p>
-                          )}
                           {selectedDiscount?._id === discount._id && (
                             <p className="text-xs text-blue-600 font-medium mt-1">
                               You save: ₹
-                              {(
-                                totalBeforeDiscount - totalAfterDiscount
-                              ).toLocaleString("en-IN")}
+                              {discountSavings.toLocaleString("en-IN")}
                             </p>
                           )}
                         </div>
@@ -713,42 +696,18 @@ const CreateOrder = () => {
                 </div>
               )}
 
-              {/* Pricing Section */}
-              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <h4 className="text-lg font-semibold mb-3 text-gray-700">
-                  Billing Summary
-                </h4>
+              {/* Final Total Section - Updated */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border-2 border-blue-200">
                 <div className="space-y-2 text-sm text-gray-700">
-                  <p>
-                    <span className="font-medium">Total Before Discount:</span>{" "}
-                    ₹{totalBeforeDiscount.toLocaleString("en-IN")}
-                  </p>
-
                   {selectedDiscount && (
-                    <p className="text-green-600">
-                      <span className="font-medium">Discount Applied:</span>{" "}
-                      {selectedDiscount.discountDesc} - You saved ₹
-                      {(
-                        totalBeforeDiscount - totalAfterDiscount
-                      ).toLocaleString("en-IN")}
+                    <p className="text-green-600 font-medium">
+                      <span>
+                        Discount Applied ({selectedDiscount.discountPer}%):
+                      </span>{" "}
+                      -₹
+                      {discountSavings.toLocaleString("en-IN")}
                     </p>
                   )}
-
-                  <p className="text-lg font-semibold">
-                    <span className="font-medium">Total After Discount:</span> ₹
-                    {totalAfterDiscount.toLocaleString("en-IN")}
-                  </p>
-
-                  <div className="flex items-center gap-3">
-                    <label className="font-medium">Extra Charges:</label>
-                    <input
-                      type="number"
-                      className="input input-sm input-bordered w-32 text-sm"
-                      placeholder="₹0"
-                      value={extraCharges}
-                      onChange={(e) => setExtraCharges(Number(e.target.value))}
-                    />
-                  </div>
 
                   <div>
                     <label className="font-medium">Remarks:</label>
@@ -761,18 +720,19 @@ const CreateOrder = () => {
                     ></textarea>
                   </div>
 
-                  <div className="pt-2 border-t mt-3">
-                    <p className="text-lg font-bold text-gray-800">
-                      Final Total: ₹
-                      {(totalAfterDiscount + extraCharges).toLocaleString(
-                        "en-IN"
-                      )}
+                  <div className="pt-3 border-t-2 border-blue-300">
+                    <p className="text-2xl font-bold text-blue-800">
+                      Final Total: ₹{finalAfterDiscount.toLocaleString("en-IN")}
                     </p>
+                    {selectedDiscount && (
+                      <p className="text-xs text-gray-600 mt-1">
+                        Original: ₹{finalBeforeDiscount.toLocaleString("en-IN")}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex justify-end gap-3 pt-3 border-t">
                 <button
                   className="btn btn-primary"
