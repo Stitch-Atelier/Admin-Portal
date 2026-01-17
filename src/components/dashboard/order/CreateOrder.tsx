@@ -8,6 +8,7 @@ import {
 } from "../../../services/requests";
 import toast from "react-hot-toast";
 import { FiMinus, FiPlus } from "react-icons/fi";
+import MasterMeasurement from "./MasterMeasurement";
 
 const CreateOrder = () => {
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -753,6 +754,7 @@ const CreateOrder = () => {
           </div>
         </dialog>
       </div>
+      {selectedUser && <MasterMeasurement userId={selectedUser._id} />}
     </main>
   );
 };

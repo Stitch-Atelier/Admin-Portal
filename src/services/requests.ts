@@ -9,7 +9,7 @@ const LoginAdmin: any = async (mobile: string) => {
       {
         mobile,
       },
-      { withCredentials: true }
+      { withCredentials: true },
     );
     return {
       response: response?.data,
@@ -30,7 +30,7 @@ const RefreshAuthToken = async () => {
     const response = await axios.post(
       `${import.meta.env.VITE_API_URL}/refresh`,
       {},
-      { withCredentials: true }
+      { withCredentials: true },
     );
     return {
       response: response?.data,
@@ -49,7 +49,7 @@ const LogoutAdmin = async () => {
       {},
       {
         withCredentials: true,
-      }
+      },
     );
   } catch (error: any) {
     if (error.response) {
@@ -68,7 +68,7 @@ const FetchAddress: any = async (userId: string) => {
       {
         userId,
       },
-      { withCredentials: true }
+      { withCredentials: true },
     );
     return {
       response: response?.data, // It returns array of addresses
@@ -87,7 +87,7 @@ const FetchAllDresses: any = async () => {
   try {
     const response = await service.get(
       `${import.meta.env.VITE_API_URL}/users/dress`,
-      { withCredentials: true }
+      { withCredentials: true },
     );
     return {
       response: response?.data, // It returns array of addresses
@@ -107,7 +107,7 @@ const FetchAllDicounts: any = async () => {
   try {
     const response = await service.get(
       `${import.meta.env.VITE_API_URL}/users/discount`,
-      { withCredentials: true }
+      { withCredentials: true },
     );
     return {
       response: response?.data,
@@ -161,7 +161,7 @@ const FetchOrders = async (status: string) => {
       `${import.meta.env.VITE_API_URL}/users/order/status/${status}`,
       {
         withCredentials: true,
-      }
+      },
     );
 
     return {
@@ -171,7 +171,7 @@ const FetchOrders = async (status: string) => {
   } catch (error: any) {
     if (error.response) {
       toast.error(
-        error.response.data.message || "Failed to fetch pending orders"
+        error.response.data.message || "Failed to fetch pending orders",
       );
       console.error("Error:", error.response.data.message);
       return { status: error.response.status, response: [] };
@@ -187,7 +187,7 @@ const FetchOrderById = async (orderId: string) => {
   try {
     const response = await service.get(
       `${import.meta.env.VITE_API_URL}/users/order/${orderId}`, // ✅ corrected endpoint
-      { withCredentials: true }
+      { withCredentials: true },
     );
 
     return {
@@ -197,7 +197,7 @@ const FetchOrderById = async (orderId: string) => {
   } catch (error: any) {
     if (error.response) {
       toast.error(
-        error.response.data.message || "Failed to fetch pending orders"
+        error.response.data.message || "Failed to fetch pending orders",
       );
       console.error("Error:", error.response.data.message);
       return { status: error.response.status, response: [] };
@@ -214,7 +214,7 @@ const UpdateOrderById = async (orderId: string, updatedData: any) => {
     const res = await service.patch(
       `${import.meta.env.VITE_API_URL}/users/order/${orderId}`,
       updatedData,
-      { withCredentials: true }
+      { withCredentials: true },
     );
 
     if (res.status === 200) {
@@ -235,6 +235,24 @@ const FetchOrdersByUser = async (userId: string) => {
   } catch (error: any) {
     throw error.response || error;
   }
+};
+
+const GetMasterMeasurement = (userId: string) => {
+  return service.get(`/users/get-measurement/${userId}`);
+};
+
+const AddMasterMeasurement = (payload: {
+  userId: string;
+  measurement: any;
+}) => {
+  return service.post("/users/add-measurement", payload);
+};
+
+const UpdateMasterMeasurement = (payload: {
+  userId: string;
+  measurement: any;
+}) => {
+  return service.post("/users/update-measurement", payload);
 };
 
 const FetchOrderQueries = async () => {
@@ -259,4 +277,7 @@ export {
   UpdateOrderById,
   FetchOrdersByUser,
   FetchOrderQueries,
+  GetMasterMeasurement,
+  AddMasterMeasurement,
+  UpdateMasterMeasurement,
 };
