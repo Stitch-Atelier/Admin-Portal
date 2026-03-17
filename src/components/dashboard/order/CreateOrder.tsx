@@ -5,6 +5,8 @@ import {
   FetchAllDresses,
   CreateOrderWithImages,
   FetchAllDicounts,
+  FetchUserPoints,
+  ApplyCoupon,
 } from "../../../services/requests";
 import toast from "react-hot-toast";
 import { FiMinus, FiPlus } from "react-icons/fi";
@@ -18,11 +20,16 @@ const CreateOrder = () => {
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
 
   const [selectedDresses, setSelectedDresses] = useState<any[]>([]);
-  const [baseTotal, setBaseTotal] = useState<number>(0); // Renamed for clarity
+  const [baseTotal, setBaseTotal] = useState<number>(0);
   const [extraCharges, setExtraCharges] = useState<number>(0);
   const [remarks, setRemarks] = useState<string>("");
 
   const [selectedDiscount, setSelectedDiscount] = useState<any>(null);
+
+  // ── Coupon state ──
+  const [activeCoupons, setActiveCoupons] = useState<any[]>([]);
+  const [selectedCoupon, setSelectedCoupon] = useState<any>(null);
+  const [userPoints, setUserPoints] = useState<number>(0);
 
   const [dressImages, setDressImages] = useState<{
     [instanceId: string]: File | null;
@@ -38,50 +45,50 @@ const CreateOrder = () => {
     return `dress_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  // Calculate discount amount on final total (base + extra charges)
-  const calculateDiscountedAmount = (
-    baseAmount: number,
-    extraCharges: number,
-    discount: any,
-  ) => {
-    const finalBeforeDiscount = baseAmount + extraCharges;
-    if (!discount) return finalBeforeDiscount;
-
-    const discountAmount = (finalBeforeDiscount * discount.discountPer) / 100;
-    return finalBeforeDiscount - discountAmount;
-  };
-
-  // Calculate values for display
+  // ── Amount calculations ──
+  // Step 1: base + extra
   const finalBeforeDiscount = baseTotal + extraCharges;
-  const finalAfterDiscount = calculateDiscountedAmount(
-    baseTotal,
-    extraCharges,
-    selectedDiscount,
-  );
-  const discountSavings = finalBeforeDiscount - finalAfterDiscount;
 
-  // Handle discount selection
+  // Step 2: apply % discount
+  const percentDiscountAmount = selectedDiscount
+    ? Math.floor((finalBeforeDiscount * selectedDiscount.discountPer) / 100)
+    : 0;
+  const afterPercentDiscount = finalBeforeDiscount - percentDiscountAmount;
+
+  // Step 3: apply coupon flat deduction
+  const couponDeduction = selectedCoupon
+    ? Math.min(selectedCoupon.remainingAmount, afterPercentDiscount)
+    : 0;
+  const finalAfterDiscount = afterPercentDiscount - couponDeduction;
+
+  // Total savings display
+  const totalSavings = percentDiscountAmount + couponDeduction;
+
   const handleDiscountChange = (discount: any) => {
     setSelectedDiscount(discount);
   };
 
-  // Clear discount
   const clearDiscount = () => {
     setSelectedDiscount(null);
   };
 
+  const handleCouponSelect = (coupon: any) => {
+    setSelectedCoupon(coupon);
+  };
+
+  const clearCoupon = () => {
+    setSelectedCoupon(null);
+  };
+
   const handleIncrease = (id: string) => {
-    setQuantities((prev) => ({
-      ...prev,
-      [id]: (prev[id] || 0) + 1,
-    }));
+    setQuantities((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
 
     const dressOBJ = allDresses.find((dress: any) => dress._id === id);
     const instanceId = generateInstanceId();
 
     const newDress = {
       ...dressOBJ,
-      instanceId: instanceId,
+      instanceId,
       dressStatus: "fabric picked",
       dressPic: "",
     };
@@ -110,7 +117,6 @@ const CreateOrder = () => {
   const handleDecrease = (id: string) => {
     const dressOBJ = allDresses.find((d: any) => d._id === id);
     if (!dressOBJ) return;
-
     const price = dressOBJ.dressPrice || 0;
 
     setQuantities((prev) => {
@@ -118,18 +124,14 @@ const CreateOrder = () => {
       if (currentQty === 0) return prev;
       const nextQty = currentQty - 1;
       const next = { ...prev };
-      if (nextQty === 0) {
-        delete next[id];
-      } else {
-        next[id] = nextQty;
-      }
+      if (nextQty === 0) delete next[id];
+      else next[id] = nextQty;
       return next;
     });
 
     setSelectedDresses((prev) => {
       const lastIndex = prev.map((item) => item._id).lastIndexOf(id);
       if (lastIndex === -1) return prev;
-
       const copy = [...prev];
       const removedDress = copy[lastIndex];
 
@@ -138,7 +140,6 @@ const CreateOrder = () => {
         delete newImages[removedDress.instanceId];
         return newImages;
       });
-
       setDressMeasurements((prevMeasurements) => {
         const newMeasurements = { ...prevMeasurements };
         delete newMeasurements[removedDress.instanceId];
@@ -153,10 +154,7 @@ const CreateOrder = () => {
   };
 
   const handleImageUpload = (instanceId: string, file: File | null) => {
-    setDressImages((prev) => ({
-      ...prev,
-      [instanceId]: file,
-    }));
+    setDressImages((prev) => ({ ...prev, [instanceId]: file }));
   };
 
   const handleMeasurementChange = (
@@ -168,10 +166,7 @@ const CreateOrder = () => {
       ...prev,
       [instanceId]: {
         ...prev[instanceId],
-        [field]: {
-          ...prev[instanceId][field],
-          val: value,
-        },
+        [field]: { ...prev[instanceId][field], val: value },
       },
     }));
   };
@@ -182,43 +177,27 @@ const CreateOrder = () => {
         toast.error(`Please upload image for ${dress.dressName}`);
         return false;
       }
-
       const measurements = dressMeasurements[dress.instanceId];
       if (!measurements) {
         toast.error(`Please fill measurements for ${dress.dressName}`);
         return false;
       }
-
       const requiredFields = [
-        "neck",
-        "bust",
-        "waist",
-        "armHole",
-        "shoulderW",
-        "armL",
-        "hip",
-        "thigh",
-        "rise",
-        "inseam",
-        "outseam",
+        "neck", "bust", "waist", "armHole", "shoulderW",
+        "armL", "hip", "thigh", "rise", "inseam", "outseam",
       ];
-
       for (const field of requiredFields) {
         if (!measurements[field]?.val || measurements[field].val === "") {
-          toast.error(
-            `Please fill ${field} measurement for ${dress.dressName}`,
-          );
+          toast.error(`Please fill ${field} measurement for ${dress.dressName}`);
           return false;
         }
       }
     }
-
     return true;
   };
 
   const handleConfirmOrder = async () => {
     if (!validateOrder()) return;
-
     setIsSubmitting(true);
 
     try {
@@ -235,11 +214,15 @@ const CreateOrder = () => {
         dresses: dressesData,
         address: addressInfo._id,
         amountBeforeDiscount: finalBeforeDiscount,
-        amountAfterDiscount: finalAfterDiscount,
-        extraCharges: extraCharges,
+        amountAfterDiscount: afterPercentDiscount,
+        extraCharges,
         userId: selectedUser._id,
-        remarks: remarks,
+        remarks,
         discountId: selectedDiscount?._id || null,
+        // ── Coupon fields saved on order ──
+        couponCode: selectedCoupon?.code || null,
+        couponDiscount: couponDeduction,
+        totalAmount: finalAfterDiscount,
       };
 
       const imagesArray = selectedDresses.map(
@@ -252,8 +235,32 @@ const CreateOrder = () => {
       );
 
       if (status === 201) {
-        toast.success("Order created successfully!");
+        // ── Apply coupon after order is created ──
+        if (selectedCoupon && couponDeduction > 0) {
+          const orderId = response?.data?._id;
+          if (orderId) {
+            const couponRes = await ApplyCoupon({
+              code: selectedCoupon.code,
+              orderId,
+              orderAmount: afterPercentDiscount,
+            });
+            if (couponRes?.status === 200) {
+              toast.success(
+                `Order created! Coupon applied — ₹${couponDeduction} discount.`,
+              );
+            } else {
+              // Order was created but coupon apply failed — warn but don't fail
+              toast.success("Order created successfully!");
+              toast.error(
+                "Coupon could not be applied — please apply manually.",
+              );
+            }
+          }
+        } else {
+          toast.success("Order created successfully!");
+        }
 
+        // Reset all state
         setSelectedDresses([]);
         setQuantities({});
         setDressImages({});
@@ -262,6 +269,7 @@ const CreateOrder = () => {
         setExtraCharges(0);
         setRemarks("");
         setSelectedDiscount(null);
+        setSelectedCoupon(null);
 
         (document.getElementById("model") as HTMLDialogElement)?.close();
       } else {
@@ -285,27 +293,38 @@ const CreateOrder = () => {
 
   const GetAllDresses = async () => {
     const { response, status } = await FetchAllDresses();
-    if (status === 200) {
-      setAllDresses(response?.dresses);
-      toast.success("Dresses fetched successfully!");
-    }
+    if (status === 200) setAllDresses(response?.dresses);
   };
 
-  const FetchAllDicountsLocal = async () => {
+  const FetchAllDiscountsLocal = async () => {
     const { response, status } = await FetchAllDicounts();
-    if (status === 200) {
-      setAllDiscounts(response?.data);
-      toast.success("Discounts fetched successfully!");
+    if (status === 200) setAllDiscounts(response?.data);
+  };
+
+  // ── Fetch user's active coupons + points ──
+  const FetchUserCoupons = async (userId: string) => {
+    const { status, data } = await FetchUserPoints(userId);
+    if (status === 200 && data) {
+      setActiveCoupons(data.activeCoupons || []);
+      setUserPoints(data.stitchPts || 0);
     }
   };
 
   useEffect(() => {
     if (selectedUser) {
-      GetAddressInfo(selectedUser?._id);
+      GetAddressInfo(selectedUser._id);
       GetAllDresses();
-      FetchAllDicountsLocal();
+      FetchAllDiscountsLocal();
+      FetchUserCoupons(selectedUser._id);
     }
   }, [selectedUser]);
+
+  const formatExpiry = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
 
   return (
     <main>
@@ -315,50 +334,33 @@ const CreateOrder = () => {
         <div className="mt-8 mb-8 p-6 rounded-2xl border border-indigo-100 shadow-sm bg-gradient-to-br from-indigo-50 to-white max-w-4xl mx-auto">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
             <div className="p-2 bg-indigo-500 rounded-lg">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-white"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M5.05 3.05a7 7 0 019.9 9.9l-4.243 4.243a1 1 0 01-1.414 0L5.05 12.95a7 7 0 010-9.9zM10 9a2 2 0 100-4 2 2 0 000 4z"
-                  clipRule="evenodd"
-                />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5.05 3.05a7 7 0 019.9 9.9l-4.243 4.243a1 1 0 01-1.414 0L5.05 12.95a7 7 0 010-9.9zM10 9a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
               </svg>
             </div>
             Delivery Address
           </h2>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2 p-4 bg-white rounded-xl border border-gray-100">
-              <p className="text-sm font-medium text-gray-500 mb-1">
-                Street Address
-              </p>
+              <p className="text-sm font-medium text-gray-500 mb-1">Street Address</p>
               <p className="text-base text-gray-800">{addressInfo?.address}</p>
             </div>
-
             <div className="p-4 bg-white rounded-xl border border-gray-100">
               <p className="text-sm font-medium text-gray-500 mb-1">City</p>
               <p className="text-base text-gray-800">{addressInfo?.city}</p>
             </div>
-
             <div className="p-4 bg-white rounded-xl border border-gray-100">
               <p className="text-sm font-medium text-gray-500 mb-1">State</p>
               <p className="text-base text-gray-800">{addressInfo?.state}</p>
             </div>
-
             <div className="p-4 bg-white rounded-xl border border-gray-100">
               <p className="text-sm font-medium text-gray-500 mb-1">Country</p>
               <p className="text-base text-gray-800">{addressInfo?.country}</p>
             </div>
-
             <div className="p-4 bg-white rounded-xl border border-gray-100">
               <p className="text-sm font-medium text-gray-500 mb-1">Pin Code</p>
               <p className="text-base text-gray-800">{addressInfo?.pinCode}</p>
             </div>
-
             {addressInfo?.addressType && (
               <div className="md:col-span-2 flex items-center gap-2">
                 <span className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
@@ -378,59 +380,40 @@ const CreateOrder = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {Array.isArray(allDresses) &&
             allDresses.map((dress) => (
-              <div
-                key={dress._id}
-                className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden flex flex-col"
-              >
+              <div key={dress._id} className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden flex flex-col">
                 <div className="relative overflow-hidden bg-gray-50">
                   {dress?.dressType && (
                     <div className="absolute top-3 right-3">
-                      <span
-                        className={`px-3 py-1 ${
-                          dress?.dressType === "No Lining"
-                            ? "bg-red-500"
-                            : "bg-sky-500"
-                        } text-white text-xs font-semibold rounded-full shadow-lg`}
-                      >
+                      <span className={`px-3 py-1 ${dress?.dressType === "No Lining" ? "bg-red-500" : "bg-sky-500"} text-white text-xs font-semibold rounded-full shadow-lg`}>
                         {dress.dressType}
                       </span>
                     </div>
                   )}
                 </div>
-
                 <div className="p-5 flex flex-col flex-grow">
                   <h3 className="text-lg font-bold text-gray-800 mb-3 line-clamp-2 min-h-[3.5rem]">
                     {dress?.dressName}
                   </h3>
-
                   <div className="mb-4">
                     <p className="text-sm text-gray-500 mb-1">Price</p>
                     <p className="text-3xl font-bold text-green-600">
                       ₹{dress?.dressPrice?.toLocaleString("en-IN")}
                     </p>
                   </div>
-
                   <div className="mt-auto pt-4 border-t border-gray-100">
                     <div className="flex items-center justify-between">
-                      <span className="text-base font-semibold text-gray-600">
-                        Quantity
-                      </span>
+                      <span className="text-base font-semibold text-gray-600">Quantity</span>
                       <div className="flex items-center gap-3 bg-gray-50 rounded-full p-1">
                         <button
                           onClick={() => handleDecrease(dress._id)}
                           className="bg-white hover:bg-rose-500 hover:text-white text-gray-700 p-2 rounded-full transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={
-                            !quantities[dress._id] ||
-                            quantities[dress._id] === 0
-                          }
+                          disabled={!quantities[dress._id] || quantities[dress._id] === 0}
                         >
                           <FiMinus className="w-4 h-4" />
                         </button>
-
                         <span className="w-12 text-center font-bold text-lg text-gray-800">
                           {quantities[dress._id] || 0}
                         </span>
-
                         <button
                           onClick={() => handleIncrease(dress._id)}
                           className="bg-blue-500 hover:bg-green-600 text-white p-2 rounded-full transition-all duration-200 shadow-sm"
@@ -447,25 +430,8 @@ const CreateOrder = () => {
 
         {(!Array.isArray(allDresses) || allDresses.length === 0) && (
           <div className="text-center py-16">
-            <svg
-              className="mx-auto h-24 w-24 text-gray-400 mb-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-              />
-            </svg>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">
-              No Dresses Available
-            </h3>
-            <p className="text-gray-500">
-              Check back later for new collections
-            </p>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">No Dresses Available</h3>
+            <p className="text-gray-500">Check back later for new collections</p>
           </div>
         )}
 
@@ -473,11 +439,7 @@ const CreateOrder = () => {
           <div className="text-center py-16">
             <button
               disabled={selectedDresses.length === 0}
-              onClick={() =>
-                (
-                  document.getElementById("model") as HTMLDialogElement | null
-                )?.showModal()
-              }
+              onClick={() => (document.getElementById("model") as HTMLDialogElement | null)?.showModal()}
               className="btn btn-md font-bold text-white bg-blue-500 hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400 transition-all duration-200"
             >
               Create Order
@@ -485,12 +447,11 @@ const CreateOrder = () => {
           </div>
         )}
 
+        {/* ── Order Summary Modal ── */}
         <dialog id="model" className="modal">
           <div className="modal-box max-w-4xl bg-white rounded-2xl shadow-xl">
             <form method="dialog">
-              <button className="btn btn-sm btn-circle btn-ghost absolute right-3 top-3">
-                ✕
-              </button>
+              <button className="btn btn-sm btn-circle btn-ghost absolute right-3 top-3">✕</button>
             </form>
 
             <h3 className="text-2xl font-bold mb-5 text-gray-800 border-b pb-2">
@@ -498,71 +459,54 @@ const CreateOrder = () => {
             </h3>
 
             <div className="space-y-4">
+              {/* Customer Details */}
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <h4 className="text-lg font-semibold mb-3 text-gray-700">
-                  Customer Details
-                </h4>
+                <h4 className="text-lg font-semibold mb-3 text-gray-700">Customer Details</h4>
                 <p className="text-sm text-gray-600">
-                  <span className="font-semibold">Name:</span>{" "}
-                  {selectedUser?.firstname}
+                  <span className="font-semibold">Name:</span> {selectedUser?.firstname}
                 </p>
                 <p className="text-sm text-gray-600">
-                  <span className="font-semibold">Mobile:</span>{" "}
-                  {selectedUser?.mobile}
+                  <span className="font-semibold">Mobile:</span> {selectedUser?.mobile}
                 </p>
                 <p className="text-sm text-gray-600">
                   <span className="font-semibold">Address:</span>{" "}
-                  {addressInfo?.address}, {addressInfo?.city},{" "}
-                  {addressInfo?.state}, {addressInfo?.country} -{" "}
-                  {addressInfo?.pinCode}
+                  {addressInfo?.address}, {addressInfo?.city}, {addressInfo?.state},{" "}
+                  {addressInfo?.country} - {addressInfo?.pinCode}
+                </p>
+                {/* ── Points info ── */}
+                <p className="text-sm text-gray-600 mt-1">
+                  <span className="font-semibold">Stitch Points:</span>{" "}
+                  <span className="text-purple-600 font-bold">{userPoints} pts</span>
                 </p>
               </div>
 
+              {/* Dresses */}
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                 <h4 className="text-lg font-semibold mb-3 text-gray-700">
                   Dresses ({selectedDresses?.length})
                 </h4>
-
                 <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
                   {selectedDresses.map((dress, index) => (
-                    <div
-                      key={dress.instanceId}
-                      className="p-4 border border-gray-200 rounded-xl bg-white shadow-sm"
-                    >
+                    <div key={dress.instanceId} className="p-4 border border-gray-200 rounded-xl bg-white shadow-sm">
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <h5 className="font-semibold text-gray-800">
-                            {dress.dressName} #{index + 1}
-                          </h5>
-                          <p className="text-sm text-gray-600">
-                            ₹{dress.dressPrice}
-                          </p>
+                          <h5 className="font-semibold text-gray-800">{dress.dressName} #{index + 1}</h5>
+                          <p className="text-sm text-gray-600">₹{dress.dressPrice}</p>
                         </div>
                       </div>
-
                       <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Upload Dress Image *
-                        </label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Upload Dress Image *</label>
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) =>
-                            handleImageUpload(
-                              dress.instanceId,
-                              e.target.files?.[0] || null,
-                            )
-                          }
+                          onChange={(e) => handleImageUpload(dress.instanceId, e.target.files?.[0] || null)}
                           className="file-input file-input-bordered file-input-sm w-full"
                           required
                         />
                         {dressImages[dress.instanceId] && (
-                          <p className="text-xs text-green-600 mt-1">
-                            ✓ {dressImages[dress.instanceId]?.name}
-                          </p>
+                          <p className="text-xs text-green-600 mt-1">✓ {dressImages[dress.instanceId]?.name}</p>
                         )}
                       </div>
-
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                         {[
                           { key: "neck", label: "Neck" },
@@ -578,25 +522,14 @@ const CreateOrder = () => {
                           { key: "outseam", label: "Outseam" },
                         ].map(({ key, label }) => (
                           <div key={key}>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">
-                              {label} *
-                            </label>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">{label} *</label>
                             <input
                               className="input input-sm input-bordered w-full text-sm"
                               type="number"
                               step="0.1"
                               placeholder="0"
-                              value={
-                                dressMeasurements[dress.instanceId]?.[key]
-                                  ?.val || ""
-                              }
-                              onChange={(e) =>
-                                handleMeasurementChange(
-                                  dress.instanceId,
-                                  key,
-                                  e.target.value,
-                                )
-                              }
+                              value={dressMeasurements[dress.instanceId]?.[key]?.val || ""}
+                              onChange={(e) => handleMeasurementChange(dress.instanceId, key, e.target.value)}
                               required
                             />
                           </div>
@@ -607,17 +540,13 @@ const CreateOrder = () => {
                 </div>
               </div>
 
-              {/* Pricing Section - Updated */}
+              {/* Billing Summary */}
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <h4 className="text-lg font-semibold mb-3 text-gray-700">
-                  Billing Summary
-                </h4>
+                <h4 className="text-lg font-semibold mb-3 text-gray-700">Billing Summary</h4>
                 <div className="space-y-2 text-sm text-gray-700">
                   <p>
-                    <span className="font-medium">Dresses Total:</span> ₹
-                    {baseTotal.toLocaleString("en-IN")}
+                    <span className="font-medium">Dresses Total:</span> ₹{baseTotal.toLocaleString("en-IN")}
                   </p>
-
                   <div className="flex items-center gap-3">
                     <label className="font-medium">Extra Charges:</label>
                     <input
@@ -628,22 +557,17 @@ const CreateOrder = () => {
                       onChange={(e) => setExtraCharges(Number(e.target.value))}
                     />
                   </div>
-
                   <p className="text-base font-semibold pt-2 border-t">
-                    <span className="font-medium">
-                      Subtotal (Before Discount):
-                    </span>{" "}
+                    <span className="font-medium">Subtotal (Before Discount):</span>{" "}
                     ₹{finalBeforeDiscount.toLocaleString("en-IN")}
                   </p>
                 </div>
               </div>
 
-              {/* Discount Selection Section - Updated */}
+              {/* % Discount Section */}
               {Array.isArray(allDiscounts) && allDiscounts.length > 0 && (
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                  <h4 className="text-lg font-semibold mb-3 text-gray-700">
-                    Apply Discount
-                  </h4>
+                  <h4 className="text-lg font-semibold mb-3 text-gray-700">Apply Discount</h4>
                   <div className="space-y-3">
                     <label className="flex items-center p-3 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 transition-colors">
                       <input
@@ -658,14 +582,11 @@ const CreateOrder = () => {
                         <p className="text-xs text-gray-500">Original price</p>
                       </div>
                     </label>
-
                     {allDiscounts.map((discount: any) => (
                       <label
                         key={discount._id}
                         className={`flex items-center p-3 bg-white border-2 rounded-lg cursor-pointer hover:border-blue-300 transition-colors ${
-                          selectedDiscount?._id === discount._id
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-200"
+                          selectedDiscount?._id === discount._id ? "border-blue-500 bg-blue-50" : "border-gray-200"
                         }`}
                       >
                         <input
@@ -677,17 +598,14 @@ const CreateOrder = () => {
                         />
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium text-gray-800">
-                              {discount?.discountDesc}
-                            </p>
+                            <p className="font-medium text-gray-800">{discount?.discountDesc}</p>
                             <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
                               {discount.discountPer}% OFF
                             </span>
                           </div>
                           {selectedDiscount?._id === discount._id && (
                             <p className="text-xs text-blue-600 font-medium mt-1">
-                              You save: ₹
-                              {discountSavings.toLocaleString("en-IN")}
+                              You save: ₹{percentDiscountAmount.toLocaleString("en-IN")}
                             </p>
                           )}
                         </div>
@@ -697,16 +615,104 @@ const CreateOrder = () => {
                 </div>
               )}
 
-              {/* Final Total Section - Updated */}
+              {/* ── Coupon Section ── */}
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-lg font-semibold text-gray-700">
+                    🎟️ Coupon Discount
+                  </h4>
+                  <span className="text-xs text-purple-600 font-medium bg-purple-50 px-2 py-1 rounded-full">
+                    {userPoints} Stitch Pts
+                  </span>
+                </div>
+
+                {activeCoupons.length === 0 ? (
+                  <div className="text-center py-4 text-gray-400 bg-white rounded-lg border border-dashed border-gray-200">
+                    <p className="text-sm">No active coupons for this customer</p>
+                    <p className="text-xs mt-1">
+                      Customer needs 600 pts to generate a coupon (currently {userPoints} pts)
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <label className="flex items-center p-3 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:border-purple-300 transition-colors">
+                      <input
+                        type="radio"
+                        name="coupon"
+                        className="radio radio-secondary mr-3"
+                        checked={!selectedCoupon}
+                        onChange={clearCoupon}
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-800">No Coupon</p>
+                        <p className="text-xs text-gray-500">Don't apply any coupon</p>
+                      </div>
+                    </label>
+
+                    {activeCoupons.map((coupon: any) => (
+                      <label
+                        key={coupon._id}
+                        className={`flex items-center p-3 bg-white border-2 rounded-lg cursor-pointer hover:border-purple-300 transition-colors ${
+                          selectedCoupon?._id === coupon._id
+                            ? "border-purple-500 bg-purple-50"
+                            : "border-gray-200"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="coupon"
+                          className="radio radio-secondary mr-3"
+                          checked={selectedCoupon?._id === coupon._id}
+                          onChange={() => handleCouponSelect(coupon)}
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono font-bold text-purple-700 text-sm">
+                              {coupon.code}
+                            </span>
+                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                              ₹{coupon.remainingAmount} remaining
+                            </span>
+                            {coupon.status === "partially_used" && (
+                              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full">
+                                Partially used
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Expires: {formatExpiry(coupon.expiresAt)}
+                          </p>
+                          {selectedCoupon?._id === coupon._id && (
+                            <p className="text-xs text-purple-600 font-medium mt-1">
+                              Will deduct: ₹
+                              {Math.min(coupon.remainingAmount, afterPercentDiscount).toLocaleString("en-IN")}
+                            </p>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Final Total */}
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border-2 border-blue-200">
                 <div className="space-y-2 text-sm text-gray-700">
                   {selectedDiscount && (
                     <p className="text-green-600 font-medium">
-                      <span>
-                        Discount Applied ({selectedDiscount.discountPer}%):
-                      </span>{" "}
-                      -₹
-                      {discountSavings.toLocaleString("en-IN")}
+                      <span>Discount ({selectedDiscount.discountPer}%):</span>{" "}
+                      -₹{percentDiscountAmount.toLocaleString("en-IN")}
+                    </p>
+                  )}
+                  {selectedCoupon && couponDeduction > 0 && (
+                    <p className="text-purple-600 font-medium">
+                      <span>Coupon ({selectedCoupon.code}):</span>{" "}
+                      -₹{couponDeduction.toLocaleString("en-IN")}
+                    </p>
+                  )}
+                  {totalSavings > 0 && (
+                    <p className="text-emerald-600 text-xs font-medium bg-emerald-50 px-2 py-1 rounded">
+                      🎉 Total savings: ₹{totalSavings.toLocaleString("en-IN")}
                     </p>
                   )}
 
@@ -725,7 +731,7 @@ const CreateOrder = () => {
                     <p className="text-2xl font-bold text-blue-800">
                       Final Total: ₹{finalAfterDiscount.toLocaleString("en-IN")}
                     </p>
-                    {selectedDiscount && (
+                    {totalSavings > 0 && (
                       <p className="text-xs text-gray-600 mt-1">
                         Original: ₹{finalBeforeDiscount.toLocaleString("en-IN")}
                       </p>
@@ -754,6 +760,7 @@ const CreateOrder = () => {
           </div>
         </dialog>
       </div>
+
       {selectedUser && <MasterMeasurement userId={selectedUser._id} />}
     </main>
   );

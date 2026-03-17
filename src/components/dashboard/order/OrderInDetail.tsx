@@ -93,6 +93,27 @@ const OrderInDetail = () => {
     }
   };
 
+  // ── NEW: Mark as Delivered ──
+  const MarkAsDelivered = async () => {
+    if (
+      !window.confirm(
+        "Mark this order as delivered? This will credit points to the customer."
+      )
+    )
+      return;
+    try {
+      const res = await UpdateOrderById(orderId!, { status: "delivered" });
+      if (res?.status === 200) {
+        toast.success("Order marked as delivered & points credited!");
+        GetOrderByID();
+      } else {
+        toast.error("Failed to update order");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("en-IN", {
       year: "numeric",
@@ -132,6 +153,7 @@ const OrderInDetail = () => {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap justify-end">
+          {/* ── Status Badge — now includes delivered ── */}
           <span
             className={`px-4 py-2 rounded-full text-sm font-semibold capitalize ${
               order.status === "pending"
@@ -140,10 +162,12 @@ const OrderInDetail = () => {
                   ? "bg-green-100 text-green-700"
                   : order.status === "cancelled"
                     ? "bg-red-100 text-red-700"
-                    : "bg-gray-100 text-gray-700"
+                    : order.status === "delivered"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-gray-100 text-gray-700"
             }`}
           >
-            {order.status}
+            {order.status === "delivered" ? "🎉 Delivered" : order.status}
           </span>
 
           {order.status === "pending" && (
@@ -169,6 +193,16 @@ const OrderInDetail = () => {
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
             >
               Mark as Completed
+            </button>
+          )}
+
+          {/* ── NEW: Mark as Delivered button — only shown for completed orders ── */}
+          {order.status === "completed" && (
+            <button
+              onClick={MarkAsDelivered}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+            >
+              🎉 Mark as Delivered
             </button>
           )}
         </div>
@@ -379,6 +413,21 @@ const OrderInDetail = () => {
               ₹{order.amountAfterDiscount}
             </span>
           </div>
+          {/* ── Show coupon discount if applied ── */}
+          {order.couponCode && (
+            <div className="flex justify-between items-center">
+              <span className="text-gray-700">
+                Coupon Discount{" "}
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-mono">
+                  {order.couponCode}
+                </span>
+                :
+              </span>
+              <span className="font-semibold text-purple-700 text-lg">
+                -₹{order.couponDiscount}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between items-center">
             <span className="text-gray-700">Extra Charges:</span>
             {editMode ? (
@@ -401,7 +450,7 @@ const OrderInDetail = () => {
               Total Amount:
             </span>
             <span className="font-bold text-blue-600 text-2xl">
-              ₹{order.amountAfterDiscount + order.extraCharges}
+              ₹{order.totalAmount || order.amountAfterDiscount + order.extraCharges}
             </span>
           </div>
         </div>

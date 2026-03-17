@@ -1,4 +1,4 @@
-// src/router.jsx
+// src/router.tsx
 import { createBrowserRouter } from "react-router-dom";
 import Login from "./components/Login";
 import Home from "./components/dashboard/Home";
@@ -12,6 +12,7 @@ import UpdateOrder from "./components/dashboard/order/UpdateOrder";
 import OrderInDetail from "./components/dashboard/order/OrderInDetail";
 import UserOrderSearch from "./components/dashboard/order/UserSearchOrder";
 import QueryHome from "./components/dashboard/queries/QueryHome";
+import Bookings from "./components/dashboard/bookings/Bookings";
 
 const router = createBrowserRouter([
   {
@@ -75,6 +76,13 @@ const router = createBrowserRouter([
             element: <div>No Component Found</div>,
           },
         ],
+      },
+      // ── Bookings Management ──
+      {
+        path: "bookings",
+        element: (
+          <RouteGuard requiresAuth={true} element={<Bookings />} />
+        ),
       },
     ],
   },

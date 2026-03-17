@@ -6,9 +6,7 @@ const LoginAdmin: any = async (mobile: string) => {
   try {
     const response = await axios.post(
       `${import.meta.env.VITE_API_URL}/login`,
-      {
-        mobile,
-      },
+      { mobile },
       { withCredentials: true },
     );
     return {
@@ -47,9 +45,7 @@ const LogoutAdmin = async () => {
     await axios.post(
       `${import.meta.env.VITE_API_URL}/logout`,
       {},
-      {
-        withCredentials: true,
-      },
+      { withCredentials: true },
     );
   } catch (error: any) {
     if (error.response) {
@@ -65,13 +61,11 @@ const FetchAddress: any = async (userId: string) => {
   try {
     const response = await service.post(
       `${import.meta.env.VITE_API_URL}/users/address`,
-      {
-        userId,
-      },
+      { userId },
       { withCredentials: true },
     );
     return {
-      response: response?.data, // It returns array of addresses
+      response: response?.data,
       status: response?.status,
     };
   } catch (error: any) {
@@ -83,6 +77,7 @@ const FetchAddress: any = async (userId: string) => {
     }
   }
 };
+
 const FetchAllDresses: any = async () => {
   try {
     const response = await service.get(
@@ -90,7 +85,7 @@ const FetchAllDresses: any = async () => {
       { withCredentials: true },
     );
     return {
-      response: response?.data, // It returns array of addresses
+      response: response?.data,
       status: response?.status,
     };
   } catch (error: any) {
@@ -125,24 +120,14 @@ const FetchAllDicounts: any = async () => {
 
 const CreateOrderWithImages = async (orderData: any, images: File[]) => {
   try {
-    // Create FormData for multipart/form-data
     const formData = new FormData();
-
-    // Add order data as JSON string
     formData.append("orderData", JSON.stringify(orderData));
-
-    // Add all dress images
     images.forEach((image) => {
       formData.append("dressImages", image);
     });
-
-    // Make the request
     const response = await service.post("/users/order", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
+      headers: { "Content-Type": "multipart/form-data" },
     });
-
     return {
       response: response.data,
       status: response.status,
@@ -159,24 +144,19 @@ const FetchOrders = async (status: string) => {
   try {
     const response = await service.get(
       `${import.meta.env.VITE_API_URL}/users/order/status/${status}`,
-      {
-        withCredentials: true,
-      },
+      { withCredentials: true },
     );
-
     return {
       status: response.status,
-      response: response.data.data, // ✅ only the array of orders
+      response: response.data.data,
     };
   } catch (error: any) {
     if (error.response) {
       toast.error(
         error.response.data.message || "Failed to fetch pending orders",
       );
-      console.error("Error:", error.response.data.message);
       return { status: error.response.status, response: [] };
     } else {
-      console.error("Network or unknown error:", error);
       toast.error("Network error occurred");
       return { status: 500, response: [] };
     }
@@ -186,23 +166,20 @@ const FetchOrders = async (status: string) => {
 const FetchOrderById = async (orderId: string) => {
   try {
     const response = await service.get(
-      `${import.meta.env.VITE_API_URL}/users/order/${orderId}`, // ✅ corrected endpoint
+      `${import.meta.env.VITE_API_URL}/users/order/${orderId}`,
       { withCredentials: true },
     );
-
     return {
       status: response.status,
-      response: response.data.data, // ✅ only the array of orders
+      response: response.data.data,
     };
   } catch (error: any) {
     if (error.response) {
       toast.error(
-        error.response.data.message || "Failed to fetch pending orders",
+        error.response.data.message || "Failed to fetch order",
       );
-      console.error("Error:", error.response.data.message);
       return { status: error.response.status, response: [] };
     } else {
-      console.error("Network or unknown error:", error);
       toast.error("Network error occurred");
       return { status: 500, response: [] };
     }
@@ -216,7 +193,6 @@ const UpdateOrderById = async (orderId: string, updatedData: any) => {
       updatedData,
       { withCredentials: true },
     );
-
     if (res.status === 200) {
       toast.success("Order updated successfully!");
       return { status: 200, response: res.data.data };
@@ -241,10 +217,7 @@ const GetMasterMeasurement = (userId: string) => {
   return service.get(`/users/get-measurement/${userId}`);
 };
 
-const AddMasterMeasurement = (payload: {
-  userId: string;
-  measurement: any;
-}) => {
+const AddMasterMeasurement = (payload: { userId: string; measurement: any }) => {
   return service.post("/users/add-measurement", payload);
 };
 
@@ -264,6 +237,64 @@ const FetchOrderQueries = async () => {
   }
 };
 
+// ── Bookings ──
+const FetchNewBookings = async () => {
+  try {
+    const response = await service.get("/users/bookings/new");
+    return { status: response.status, data: response.data.data };
+  } catch (error: any) {
+    console.error("Error fetching new bookings:", error);
+    return { status: error.response?.status || 500, data: [] };
+  }
+};
+
+const FetchBookingHistory = async () => {
+  try {
+    const response = await service.get("/users/bookings/history");
+    return { status: response.status, data: response.data.data };
+  } catch (error: any) {
+    console.error("Error fetching booking history:", error);
+    return { status: error.response?.status || 500, data: [] };
+  }
+};
+
+const UpdateBookingStatus = async (id: string, status: string) => {
+  try {
+    const response = await service.patch(`/users/bookings/${id}/status`, {
+      status,
+    });
+    return { status: response.status, data: response.data };
+  } catch (error: any) {
+    console.error("Error updating booking status:", error);
+    return { status: error.response?.status || 500, data: null };
+  }
+};
+
+// ── Points & Coupons ──
+const FetchUserPoints = async (userId: string) => {
+  try {
+    const response = await service.get(`/users/points/${userId}`);
+    return { status: response.status, data: response.data.data };
+  } catch (error: any) {
+    console.error("Error fetching user points:", error);
+    return { status: error.response?.status || 500, data: null };
+  }
+};
+
+const ApplyCoupon = async (payload: {
+  code: string;
+  orderId: string;
+  orderAmount: number;
+}) => {
+  try {
+    const response = await service.patch("/users/coupon/apply", payload);
+    return { status: response.status, data: response.data };
+  } catch (error: any) {
+    console.error("Error applying coupon:", error);
+    return { status: error.response?.status || 500, data: null };
+  }
+};
+
 export {
   LoginAdmin,
   RefreshAuthToken,
@@ -280,4 +311,11 @@ export {
   GetMasterMeasurement,
   AddMasterMeasurement,
   UpdateMasterMeasurement,
+  // Bookings
+  FetchNewBookings,
+  FetchBookingHistory,
+  UpdateBookingStatus,
+  // Points & Coupons
+  FetchUserPoints,
+  ApplyCoupon,
 };
