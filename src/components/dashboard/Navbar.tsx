@@ -19,7 +19,7 @@ const Navbar = () => {
   useEffect(() => {
     fetchBookingCount();
     // Poll every 30s for new bookings badge
-    const interval = setInterval(fetchBookingCount, 30000);
+    const interval = setInterval(fetchBookingCount, 120000); // poll every 2 mins
     return () => clearInterval(interval);
   }, []);
 
