@@ -120,7 +120,7 @@ const UserSearchOrder = () => {
       else setPointsData(null);
 
       if (measurementRes.status === "fulfilled") {
-        const m = measurementRes.value.data?.measurement || null;
+        const m = measurementRes.value.data?.measurement?.measurement || null;
         setMeasurement(m);
         setEditedMeasurement(m ? { ...m } : { ...EMPTY_MEASUREMENT });
       } else {
@@ -146,13 +146,20 @@ const UserSearchOrder = () => {
   const handleSaveMeasurements = async () => {
     setSavingMeasurement(true);
     try {
-      const payload = { userId: selectedUser._id, measurement: editedMeasurement };
+      // Only send the known measurement keys, strip any Mongoose extras
+      const cleanMeasurement = Object.fromEntries(
+        MEASUREMENT_KEYS.map(({ key, type }) => [
+          key,
+          { type, val: editedMeasurement?.[key]?.val || "" },
+        ])
+      );
+      const payload = { userId: selectedUser._id, measurement: cleanMeasurement };
       if (measurement) {
         await UpdateMasterMeasurement(payload);
       } else {
         await AddMasterMeasurement(payload);
       }
-      setMeasurement({ ...editedMeasurement });
+      setMeasurement({ ...cleanMeasurement });
       setEditingMeasurements(false);
       toast.success("Measurements saved successfully!");
     } catch { toast.error("Failed to save measurements"); }
