@@ -120,7 +120,7 @@ const UserSearchOrder = () => {
       else setPointsData(null);
 
       if (measurementRes.status === "fulfilled") {
-        const m = measurementRes.value.data?.data || null;
+        const m = measurementRes.value.data?.measurement || null;
         setMeasurement(m);
         setEditedMeasurement(m ? { ...m } : { ...EMPTY_MEASUREMENT });
       } else {

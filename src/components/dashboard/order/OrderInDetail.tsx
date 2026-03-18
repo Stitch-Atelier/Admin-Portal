@@ -402,32 +402,48 @@ const OrderInDetail = () => {
         </h2>
         <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <span className="text-gray-700">Amount Before Discount:</span>
+            <span className="text-gray-700">Original Amount:</span>
             <span className="font-semibold text-gray-900 text-lg">
               ₹{order.amountBeforeDiscount}
             </span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-gray-700">Amount After Discount:</span>
-            <span className="font-semibold text-gray-900 text-lg">
-              ₹{order.amountAfterDiscount}
-            </span>
-          </div>
-          {/* ── Show coupon discount if applied ── */}
-          {order.couponCode && (
-            <div className="flex justify-between items-center">
-              <span className="text-gray-700">
-                Coupon Discount{" "}
-                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-mono">
-                  {order.couponCode}
+
+          {/* Show % discount if applied */}
+          {order.amountBeforeDiscount !== order.amountAfterDiscount && (
+            <div className="flex justify-between items-center text-green-700">
+              <span className="flex items-center gap-2">
+                Discount Applied
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                  -{Math.round(((order.amountBeforeDiscount - order.amountAfterDiscount) / order.amountBeforeDiscount) * 100)}% OFF
                 </span>
-                :
               </span>
-              <span className="font-semibold text-purple-700 text-lg">
-                -₹{order.couponDiscount}
+              <span className="font-semibold">
+                -₹{order.amountBeforeDiscount - order.amountAfterDiscount}
               </span>
             </div>
           )}
+
+          {/* Show amount after % discount if discount was applied */}
+          {order.amountBeforeDiscount !== order.amountAfterDiscount && (
+            <div className="flex justify-between items-center text-gray-600 text-sm">
+              <span>After Discount:</span>
+              <span className="font-medium">₹{order.amountAfterDiscount}</span>
+            </div>
+          )}
+
+          {/* Show coupon discount if applied */}
+          {order.couponCode && order.couponDiscount > 0 && (
+            <div className="flex justify-between items-center text-purple-700">
+              <span className="flex items-center gap-2">
+                Coupon Applied
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-mono font-medium">
+                  {order.couponCode}
+                </span>
+              </span>
+              <span className="font-semibold">-₹{order.couponDiscount}</span>
+            </div>
+          )}
+
           <div className="flex justify-between items-center">
             <span className="text-gray-700">Extra Charges:</span>
             {editMode ? (
@@ -445,10 +461,19 @@ const OrderInDetail = () => {
               </span>
             )}
           </div>
+
+          {/* Total savings summary */}
+          {(order.amountBeforeDiscount !== order.amountAfterDiscount || (order.couponCode && order.couponDiscount > 0)) && (
+            <div className="flex justify-between items-center text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg text-sm">
+              <span className="font-medium">🎉 Total Savings:</span>
+              <span className="font-bold">
+                -₹{(order.amountBeforeDiscount - order.amountAfterDiscount) + (order.couponDiscount || 0)}
+              </span>
+            </div>
+          )}
+
           <div className="pt-3 border-t-2 border-blue-300 flex justify-between items-center">
-            <span className="text-gray-800 font-bold text-lg">
-              Total Amount:
-            </span>
+            <span className="text-gray-800 font-bold text-lg">Total Amount:</span>
             <span className="font-bold text-blue-600 text-2xl">
               ₹{order.totalAmount || order.amountAfterDiscount + order.extraCharges}
             </span>
