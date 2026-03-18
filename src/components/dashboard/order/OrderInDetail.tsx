@@ -97,7 +97,7 @@ const OrderInDetail = () => {
   const MarkAsDelivered = async () => {
     if (
       !window.confirm(
-        "Mark this order as delivered? This will credit points to the customer."
+        "Mark this order as delivered? This will credit points to the customer.",
       )
     )
       return;
@@ -283,12 +283,14 @@ const OrderInDetail = () => {
                         <h3 className="text-xl font-bold text-gray-800 mb-1">
                           {item.dressName}
                         </h3>
-                        <p className="text-sm text-gray-600 mb-1">
-                          Dress ID:{" "}
-                          <span className="font-mono text-xs">
-                            {item.dressId}
-                          </span>
-                        </p>
+                        {item.dressId && (
+                          <p className="text-sm text-gray-600 mb-1">
+                            Dress ID:{" "}
+                            <span className="font-mono text-xs">
+                              {item.dressId}
+                            </span>
+                          </p>
+                        )}
                       </div>
                       <button
                         onClick={() =>
@@ -414,7 +416,13 @@ const OrderInDetail = () => {
               <span className="flex items-center gap-2">
                 Discount Applied
                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                  -{Math.round(((order.amountBeforeDiscount - order.amountAfterDiscount) / order.amountBeforeDiscount) * 100)}% OFF
+                  -
+                  {Math.round(
+                    ((order.amountBeforeDiscount - order.amountAfterDiscount) /
+                      order.amountBeforeDiscount) *
+                      100,
+                  )}
+                  % OFF
                 </span>
               </span>
               <span className="font-semibold">
@@ -463,19 +471,27 @@ const OrderInDetail = () => {
           </div>
 
           {/* Total savings summary */}
-          {(order.amountBeforeDiscount !== order.amountAfterDiscount || (order.couponCode && order.couponDiscount > 0)) && (
+          {(order.amountBeforeDiscount !== order.amountAfterDiscount ||
+            (order.couponCode && order.couponDiscount > 0)) && (
             <div className="flex justify-between items-center text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg text-sm">
               <span className="font-medium">🎉 Total Savings:</span>
               <span className="font-bold">
-                -₹{(order.amountBeforeDiscount - order.amountAfterDiscount) + (order.couponDiscount || 0)}
+                -₹
+                {order.amountBeforeDiscount -
+                  order.amountAfterDiscount +
+                  (order.couponDiscount || 0)}
               </span>
             </div>
           )}
 
           <div className="pt-3 border-t-2 border-blue-300 flex justify-between items-center">
-            <span className="text-gray-800 font-bold text-lg">Total Amount:</span>
+            <span className="text-gray-800 font-bold text-lg">
+              Total Amount:
+            </span>
             <span className="font-bold text-blue-600 text-2xl">
-              ₹{order.totalAmount || order.amountAfterDiscount + order.extraCharges}
+              ₹
+              {order.totalAmount ||
+                order.amountAfterDiscount + order.extraCharges}
             </span>
           </div>
         </div>
