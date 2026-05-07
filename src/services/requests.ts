@@ -295,6 +295,16 @@ const ApplyCoupon = async (payload: {
   }
 };
 
+const FetchPaymentByOrderID = async (orderID: string) => {
+  try {
+    const response = await service.get(`/users/payment/${orderID}`);
+    return { status: response.status, data: response.data.data };
+  } catch (error: any) {
+    console.error("Error fetching payment:", error);
+    return { status: error.response?.status || 500, data: null };
+  }
+};
+
 export {
   LoginAdmin,
   RefreshAuthToken,
@@ -318,4 +328,5 @@ export {
   // Points & Coupons
   FetchUserPoints,
   ApplyCoupon,
+  FetchPaymentByOrderID,
 };
