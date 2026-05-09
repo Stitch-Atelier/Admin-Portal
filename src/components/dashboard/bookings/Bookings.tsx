@@ -22,14 +22,12 @@ type BookingItem = {
     totalItems: number;
     totalAmount: number;
   };
-  address: {
-    type: string;
-    addressText: string;
-  };
+  address: { type: string; addressText: string };
   paymentMethod: string;
   status: string;
   createdAt: string;
   customRequest?: string | null;
+  referenceImages?: string[];
 };
 
 const statusBadge = (status: string) => {
@@ -73,10 +71,37 @@ const BookingCard = ({
   confirming: string | null;
 }) => {
   const [expanded, setExpanded] = useState(false);
+  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+  const hasRefImages =
+    booking.referenceImages && booking.referenceImages.length > 0;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all">
-      {/* ── Card Header ── */}
+      {/* Lightbox */}
+      {lightboxImg && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setLightboxImg(null)}
+        >
+          <div
+            className="relative max-w-3xl w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={lightboxImg}
+              alt="Reference"
+              className="w-full rounded-xl max-h-[80vh] object-contain"
+            />
+            <button
+              onClick={() => setLightboxImg(null)}
+              className="absolute -top-3 -right-3 bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg text-gray-700 hover:text-black font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="p-5">
         <div className="flex justify-between items-start gap-4">
           <div className="flex-1">
@@ -89,6 +114,12 @@ const BookingCard = ({
               <span className="text-xs text-gray-400">
                 {formatDate(booking.createdAt)}
               </span>
+              {hasRefImages && (
+                <span className="px-2 py-1 bg-purple-50 text-purple-600 text-xs font-semibold rounded-full flex items-center gap-1">
+                  📸 {booking.referenceImages!.length} ref image
+                  {booking.referenceImages!.length > 1 ? "s" : ""}
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700">
@@ -125,7 +156,6 @@ const BookingCard = ({
             )}
           </div>
 
-          {/* ── Actions ── */}
           {showActions && (
             <div className="flex flex-col gap-2 flex-shrink-0">
               <button
@@ -146,22 +176,22 @@ const BookingCard = ({
           )}
         </div>
 
-        {/* ── Toggle Items ── */}
         <button
           onClick={() => setExpanded(!expanded)}
           className="mt-3 text-xs text-blue-600 hover:underline font-medium"
         >
-          {expanded ? "▲ Hide items" : "▼ View items"}
+          {expanded ? "▲ Hide details" : "▼ View details"}
         </button>
       </div>
 
-      {/* ── Expanded Items ── */}
+      {/* Expanded Section */}
       {expanded && (
         <div className="border-t border-gray-100 px-5 pb-5">
+          {/* Items */}
           <h4 className="text-sm font-semibold text-gray-700 mt-3 mb-2">
             Items Requested
           </h4>
-          <div className="space-y-2">
+          <div className="space-y-2 mb-4">
             {booking.orderDetails.items.map((item, idx) => (
               <div
                 key={idx}
@@ -177,12 +207,48 @@ const BookingCard = ({
               </div>
             ))}
           </div>
-          <div className="mt-3 flex justify-end text-sm font-semibold text-gray-800">
+          <div className="flex justify-end text-sm font-semibold text-gray-800 mb-1">
             Base Total: ₹{booking.orderDetails.totalAmount}
           </div>
-          <p className="text-xs text-gray-400 mt-1 text-right">
+          <p className="text-xs text-gray-400 text-right mb-4">
             * Final price determined after representative visit
           </p>
+
+          {/* Reference Images */}
+          {hasRefImages && (
+            <div className="border-t border-gray-100 pt-4">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                📸 Reference Images
+                <span className="text-xs font-normal text-gray-400">
+                  Click to enlarge · {booking.referenceImages!.length} image
+                  {booking.referenceImages!.length > 1 ? "s" : ""}
+                </span>
+              </h4>
+              <div className="flex gap-3 flex-wrap">
+                {booking.referenceImages!.map((url, idx) => (
+                  <div
+                    key={idx}
+                    className="relative group cursor-pointer"
+                    onClick={() => setLightboxImg(url)}
+                  >
+                    <img
+                      src={url}
+                      alt={`Reference ${idx + 1}`}
+                      className="w-32 h-32 object-cover rounded-xl border-2 border-gray-200 group-hover:border-purple-400 transition-all group-hover:scale-105 duration-200"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-xl transition-all flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 text-white text-xs font-semibold bg-black/50 px-2 py-1 rounded-full transition-all">
+                        View
+                      </span>
+                    </div>
+                    <span className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded-full">
+                      {idx + 1}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -215,7 +281,6 @@ const Bookings = () => {
 
   useEffect(() => {
     loadAll();
-    // ── Poll every 30s for new bookings ──
     const interval = setInterval(loadNew, 30000);
     return () => clearInterval(interval);
   }, [loadAll, loadNew]);
@@ -258,7 +323,6 @@ const Bookings = () => {
 
   return (
     <div className="max-w-5xl mx-auto p-6">
-      {/* ── Page Header ── */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Bookings</h1>
         <p className="text-gray-500 mt-1">
@@ -266,7 +330,6 @@ const Bookings = () => {
         </p>
       </div>
 
-      {/* ── Tabs ── */}
       <div className="flex gap-2 mb-6 border-b border-gray-200">
         <button
           onClick={() => setActiveTab("new")}
@@ -300,7 +363,6 @@ const Bookings = () => {
         </button>
       </div>
 
-      {/* ── Content ── */}
       {loading ? (
         <div className="flex items-center justify-center h-48">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
@@ -312,7 +374,7 @@ const Bookings = () => {
               <div className="text-5xl mb-3">📭</div>
               <p className="text-lg font-medium">No new bookings</p>
               <p className="text-sm mt-1">
-                New booking requests from customers will appear here
+                New booking requests will appear here
               </p>
             </div>
           ) : (
