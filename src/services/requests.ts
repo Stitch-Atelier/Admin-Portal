@@ -118,20 +118,22 @@ const FetchAllDicounts: any = async () => {
   }
 };
 
-const CreateOrderWithImages = async (orderData: any, images: File[]) => {
+const CreateOrderWithImages = async (
+  orderData: any,
+  images: File[],
+  referenceImages: File[] = [],
+) => {
   try {
     const formData = new FormData();
     formData.append("orderData", JSON.stringify(orderData));
-    images.forEach((image) => {
-      formData.append("dressImages", image);
-    });
+    images.forEach((image) => formData.append("dressImages", image));
+    referenceImages.forEach((image) =>
+      formData.append("referenceImages", image),
+    );
     const response = await service.post("/users/order", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-    return {
-      response: response.data,
-      status: response.status,
-    };
+    return { response: response.data, status: response.status };
   } catch (error: any) {
     return {
       response: error.response?.data || { message: "Failed to create order" },
@@ -175,9 +177,7 @@ const FetchOrderById = async (orderId: string) => {
     };
   } catch (error: any) {
     if (error.response) {
-      toast.error(
-        error.response.data.message || "Failed to fetch order",
-      );
+      toast.error(error.response.data.message || "Failed to fetch order");
       return { status: error.response.status, response: [] };
     } else {
       toast.error("Network error occurred");
@@ -217,7 +217,10 @@ const GetMasterMeasurement = (userId: string) => {
   return service.get(`/users/get-measurement/${userId}`);
 };
 
-const AddMasterMeasurement = (payload: { userId: string; measurement: any }) => {
+const AddMasterMeasurement = (payload: {
+  userId: string;
+  measurement: any;
+}) => {
   return service.post("/users/add-measurement", payload);
 };
 
