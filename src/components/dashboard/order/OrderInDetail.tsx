@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { FetchOrderById, UpdateOrderById, FetchPaymentByOrderID } from "../../../services/requests";
+import {
+  FetchOrderById,
+  UpdateOrderById,
+  FetchPaymentByOrderID,
+} from "../../../services/requests";
 
 const DRESS_STATUSES = [
   "fabric picked",
@@ -101,12 +105,12 @@ const OrderInDetail = () => {
     // For online orders, check payment before allowing delivery
     if (order.paymentStatus !== "paid") {
       const isCash = window.confirm(
-        "Payment has not been received online yet.\n\nClick OK if the customer is paying cash and you have collected it.\nClick Cancel to go back."
+        "Payment has not been received online yet.\n\nClick OK if the customer is paying cash and you have collected it.\nClick Cancel to go back.",
       );
       if (!isCash) return;
     } else {
       const confirmed = window.confirm(
-        "Mark this order as delivered? This will credit points to the customer."
+        "Mark this order as delivered? This will credit points to the customer.",
       );
       if (!confirmed) return;
     }
@@ -241,31 +245,39 @@ const OrderInDetail = () => {
 
       {/* ── Payment Details Panel — shown when payment exists ── */}
       {payment && (
-        <div className={`mb-6 p-4 rounded-lg border ${
-          isPaid
-            ? "bg-emerald-50 border-emerald-200"
-            : "bg-orange-50 border-orange-200"
-        }`}>
+        <div
+          className={`mb-6 p-4 rounded-lg border ${
+            isPaid
+              ? "bg-emerald-50 border-emerald-200"
+              : "bg-orange-50 border-orange-200"
+          }`}
+        >
           <h2 className="text-lg font-semibold text-gray-800 mb-2">
             {isPaid ? "✅ Payment Details" : "⏳ Payment Status"}
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
             <div>
               <p className="text-gray-500 font-medium">Status</p>
-              <p className={`font-semibold capitalize ${isPaid ? "text-emerald-700" : "text-orange-700"}`}>
+              <p
+                className={`font-semibold capitalize ${isPaid ? "text-emerald-700" : "text-orange-700"}`}
+              >
                 {payment.status}
               </p>
             </div>
             {payment.razorpayPaymentId && (
               <div>
                 <p className="text-gray-500 font-medium">Payment ID</p>
-                <p className="font-mono text-xs text-gray-800">{payment.razorpayPaymentId}</p>
+                <p className="font-mono text-xs text-gray-800">
+                  {payment.razorpayPaymentId}
+                </p>
               </div>
             )}
             {payment.razorpayOrderId && (
               <div>
                 <p className="text-gray-500 font-medium">Razorpay Order ID</p>
-                <p className="font-mono text-xs text-gray-800">{payment.razorpayOrderId}</p>
+                <p className="font-mono text-xs text-gray-800">
+                  {payment.razorpayOrderId}
+                </p>
               </div>
             )}
             <div>
@@ -372,22 +384,30 @@ const OrderInDetail = () => {
                         }
                         className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm font-medium"
                       >
-                        {expandedDress === idx ? "Hide Details" : "View Details"}
+                        {expandedDress === idx
+                          ? "Hide Details"
+                          : "View Details"}
                       </button>
                     </div>
 
                     <div className="grid grid-cols-3 gap-3 mb-3">
                       <div className="bg-white p-3 rounded border">
                         <p className="text-xs text-gray-500 mb-1">Type</p>
-                        <p className="font-semibold text-gray-800">{item.dressType}</p>
+                        <p className="font-semibold text-gray-800">
+                          {item.dressType}
+                        </p>
                       </div>
                       <div className="bg-white p-3 rounded border">
                         <p className="text-xs text-gray-500 mb-1">Price</p>
-                        <p className="font-semibold text-gray-800">₹{item.dressPrice}</p>
+                        <p className="font-semibold text-gray-800">
+                          ₹{item.dressPrice}
+                        </p>
                       </div>
                       <div className="bg-white p-3 rounded border">
                         <p className="text-xs text-gray-500 mb-1">Status</p>
-                        <p className="font-semibold text-blue-600 capitalize">{item.dressStatus}</p>
+                        <p className="font-semibold text-blue-600 capitalize">
+                          {item.dressStatus}
+                        </p>
                       </div>
                     </div>
 
@@ -418,7 +438,9 @@ const OrderInDetail = () => {
                                 }}
                                 className="text-blue-600"
                               />
-                              <span className="text-sm capitalize">{status}</span>
+                              <span className="text-sm capitalize">
+                                {status}
+                              </span>
                             </label>
                           ))}
                         </div>
@@ -429,20 +451,70 @@ const OrderInDetail = () => {
 
                 {expandedDress === idx && item.measurement && (
                   <div className="mt-4 pt-4 border-t border-gray-300">
-                    <h4 className="font-semibold text-gray-800 mb-3">Measurements</h4>
+                    <h4 className="font-semibold text-gray-800 mb-3">
+                      Measurements
+                    </h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {Object.entries(item.measurement).map(
                         ([key, value]: [string, any]) => (
-                          <div key={key} className="bg-white p-3 rounded border">
+                          <div
+                            key={key}
+                            className="bg-white p-3 rounded border"
+                          >
                             <p className="text-xs text-gray-500 uppercase mb-1">
                               {key.replace(/([A-Z])/g, " $1").trim()}
                             </p>
-                            <p className="font-semibold text-gray-800">{value.val}</p>
-                            <p className="text-xs text-blue-600 mt-1">{value.type}</p>
+                            <p className="font-semibold text-gray-800">
+                              {value.val}
+                            </p>
+                            <p className="text-xs text-blue-600 mt-1">
+                              {value.type}
+                            </p>
                           </div>
-                        )
+                        ),
                       )}
                     </div>
+
+                    {/* Reference Images per dress */}
+                    {item.referenceImages &&
+                      item.referenceImages.length > 0 && (
+                        <div className="mt-4">
+                          <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            📸 Reference Images
+                            <span className="text-xs font-normal text-gray-400">
+                              Click to enlarge · {item.referenceImages.length}{" "}
+                              image{item.referenceImages.length > 1 ? "s" : ""}
+                            </span>
+                          </h4>
+                          <div className="flex gap-3 flex-wrap">
+                            {item.referenceImages.map(
+                              (url: string, ridx: number) => (
+                                <a
+                                  key={ridx}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="relative group"
+                                >
+                                  <img
+                                    src={url}
+                                    alt={`Reference ${ridx + 1}`}
+                                    className="w-32 h-32 object-cover rounded-xl border-2 border-gray-200 group-hover:border-purple-400 transition-all group-hover:scale-105 duration-200"
+                                  />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-xl transition-all flex items-center justify-center">
+                                    <span className="opacity-0 group-hover:opacity-100 text-white text-xs font-semibold bg-black/50 px-2 py-1 rounded-full transition-all">
+                                      View
+                                    </span>
+                                  </div>
+                                  <span className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded-full">
+                                    {ridx + 1}
+                                  </span>
+                                </a>
+                              ),
+                            )}
+                          </div>
+                        </div>
+                      )}
                   </div>
                 )}
               </div>
@@ -469,10 +541,13 @@ const OrderInDetail = () => {
               <span className="flex items-center gap-2">
                 Discount Applied
                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                  -{Math.round(
+                  -
+                  {Math.round(
                     ((order.amountBeforeDiscount - order.amountAfterDiscount) /
-                      order.amountBeforeDiscount) * 100
-                  )}% OFF
+                      order.amountBeforeDiscount) *
+                      100,
+                  )}
+                  % OFF
                 </span>
               </span>
               <span className="font-semibold">
@@ -523,15 +598,22 @@ const OrderInDetail = () => {
             <div className="flex justify-between items-center text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg text-sm">
               <span className="font-medium">🎉 Total Savings:</span>
               <span className="font-bold">
-                -₹{order.amountBeforeDiscount - order.amountAfterDiscount + (order.couponDiscount || 0)}
+                -₹
+                {order.amountBeforeDiscount -
+                  order.amountAfterDiscount +
+                  (order.couponDiscount || 0)}
               </span>
             </div>
           )}
 
           <div className="pt-3 border-t-2 border-blue-300 flex justify-between items-center">
-            <span className="text-gray-800 font-bold text-lg">Total Amount:</span>
+            <span className="text-gray-800 font-bold text-lg">
+              Total Amount:
+            </span>
             <span className="font-bold text-blue-600 text-2xl">
-              ₹{order.totalAmount || order.amountAfterDiscount + order.extraCharges}
+              ₹
+              {order.totalAmount ||
+                order.amountAfterDiscount + order.extraCharges}
             </span>
           </div>
         </div>
@@ -560,7 +642,10 @@ const OrderInDetail = () => {
       {editMode && (
         <div className="flex justify-end gap-3">
           <button
-            onClick={() => { setEditMode(false); GetOrderByID(); }}
+            onClick={() => {
+              setEditMode(false);
+              GetOrderByID();
+            }}
             className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
           >
             Discard Changes
@@ -569,7 +654,9 @@ const OrderInDetail = () => {
             disabled={updating}
             onClick={HandleOrderUpdate}
             className={`px-6 py-3 rounded-lg text-white font-medium transition ${
-              updating ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+              updating
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-green-600 hover:bg-green-700"
             }`}
           >
             {updating ? "Updating..." : "Save Changes"}
