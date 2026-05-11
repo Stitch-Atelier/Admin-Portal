@@ -39,10 +39,16 @@ const CreateOrder = () => {
   }>({ name: "", price: "" });
   const [showCustomForm, setShowCustomForm] = useState(false);
 
-  // ── Reference images state ──
-  const [referenceImages, setReferenceImages] = useState<File[]>([]);
-  const [refPreviews, setRefPreviews] = useState<string[]>([]);
-  const refInputRef = useRef<HTMLInputElement>(null);
+  // ── Per-dress reference images state ──
+  const [dressRefImages, setDressRefImages] = useState<{
+    [instanceId: string]: File[];
+  }>({});
+  const [dressRefPreviews, setDressRefPreviews] = useState<{
+    [instanceId: string]: string[];
+  }>({});
+  const refInputRefs = useRef<{
+    [instanceId: string]: HTMLInputElement | null;
+  }>({});
 
   const CUSTOM_DRESS_ID = "000000000000000000000000";
 
@@ -60,24 +66,39 @@ const CreateOrder = () => {
   const finalAfterDiscount = afterPercentDiscount - couponDeduction;
   const totalSavings = percentDiscountAmount + couponDeduction;
 
-  // ── Reference image handlers ──
-  const handleRefImageAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ── Per-dress reference image handlers ──
+  const handleRefImageAdd = (
+    instanceId: string,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const files = Array.from(e.target.files || []);
-    const remaining = 3 - referenceImages.length;
+    const existing = dressRefImages[instanceId] || [];
+    const remaining = 3 - existing.length;
     const toAdd = files.slice(0, remaining);
-
     const newPreviews = toAdd.map((f) => URL.createObjectURL(f));
-    setReferenceImages((prev) => [...prev, ...toAdd]);
-    setRefPreviews((prev) => [...prev, ...newPreviews]);
-
-    // Reset input so same file can be re-selected
-    if (refInputRef.current) refInputRef.current.value = "";
+    setDressRefImages((prev) => ({
+      ...prev,
+      [instanceId]: [...(prev[instanceId] || []), ...toAdd],
+    }));
+    setDressRefPreviews((prev) => ({
+      ...prev,
+      [instanceId]: [...(prev[instanceId] || []), ...newPreviews],
+    }));
+    if (refInputRefs.current[instanceId])
+      refInputRefs.current[instanceId]!.value = "";
   };
 
-  const handleRefImageRemove = (index: number) => {
-    URL.revokeObjectURL(refPreviews[index]);
-    setReferenceImages((prev) => prev.filter((_, i) => i !== index));
-    setRefPreviews((prev) => prev.filter((_, i) => i !== index));
+  const handleRefImageRemove = (instanceId: string, index: number) => {
+    const previews = dressRefPreviews[instanceId] || [];
+    URL.revokeObjectURL(previews[index]);
+    setDressRefImages((prev) => ({
+      ...prev,
+      [instanceId]: (prev[instanceId] || []).filter((_, i) => i !== index),
+    }));
+    setDressRefPreviews((prev) => ({
+      ...prev,
+      [instanceId]: (prev[instanceId] || []).filter((_, i) => i !== index),
+    }));
   };
 
   const handleDiscountChange = (discount: any) => setSelectedDiscount(discount);
@@ -295,11 +316,21 @@ const CreateOrder = () => {
       const dressImagesArray = selectedDresses.map(
         (dress) => dressImages[dress.instanceId] as File,
       );
+      // Collect all per-dress reference images with dress index prefix for server to parse
+      const allRefImages: File[] = [];
+      const refImageMap: { dressIndex: number; count: number }[] = [];
+      selectedDresses.forEach((dress, idx) => {
+        const refs = dressRefImages[dress.instanceId] || [];
+        refImageMap.push({ dressIndex: idx, count: refs.length });
+        allRefImages.push(...refs);
+      });
+      // Pass refImageMap as JSON in orderData so server knows which images belong to which dress
+      (orderData as any).refImageMap = refImageMap;
 
       const { response, status } = await CreateOrderWithImages(
         orderData,
         dressImagesArray,
-        referenceImages,
+        allRefImages,
       );
 
       if (status === 201) {
@@ -338,9 +369,11 @@ const CreateOrder = () => {
         setSelectedCoupon(null);
         setShowCustomForm(false);
         setCustomDressForm({ name: "", price: "" });
-        refPreviews.forEach((p) => URL.revokeObjectURL(p));
-        setReferenceImages([]);
-        setRefPreviews([]);
+        Object.values(dressRefPreviews)
+          .flat()
+          .forEach((p) => URL.revokeObjectURL(p));
+        setDressRefImages({});
+        setDressRefPreviews({});
 
         (document.getElementById("model") as HTMLDialogElement)?.close();
       } else {
@@ -783,84 +816,103 @@ const CreateOrder = () => {
                           </div>
                         ))}
                       </div>
+
+                      {/* Per-dress Reference Images */}
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <p className="text-sm font-medium text-purple-700 flex items-center gap-1.5">
+                              <span>📸</span> Reference Images
+                            </p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              Optional · Up to 3 · Visible to tailor & customer
+                            </p>
+                          </div>
+                          {(dressRefImages[dress.instanceId]?.length || 0) <
+                            3 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                refInputRefs.current[dress.instanceId]?.click()
+                              }
+                              className="btn btn-xs bg-purple-100 text-purple-700 hover:bg-purple-200 border-none font-semibold"
+                            >
+                              + Add
+                            </button>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/jpg,image/png,image/webp"
+                            multiple
+                            className="hidden"
+                            ref={(el) => {
+                              refInputRefs.current[dress.instanceId] = el;
+                            }}
+                            onChange={(e) =>
+                              handleRefImageAdd(dress.instanceId, e)
+                            }
+                          />
+                        </div>
+
+                        {(dressRefImages[dress.instanceId]?.length || 0) ===
+                        0 ? (
+                          <div
+                            className="border-2 border-dashed border-purple-200 rounded-lg p-4 text-center cursor-pointer hover:border-purple-300 transition-all"
+                            onClick={() =>
+                              refInputRefs.current[dress.instanceId]?.click()
+                            }
+                          >
+                            <p className="text-xs text-gray-400">
+                              Click to add reference images for this dress
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 flex-wrap">
+                            {(dressRefPreviews[dress.instanceId] || []).map(
+                              (preview, pidx) => (
+                                <div key={pidx} className="relative">
+                                  <img
+                                    src={preview}
+                                    alt={`Ref ${pidx + 1}`}
+                                    className="w-20 h-20 object-cover rounded-lg border-2 border-purple-200"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleRefImageRemove(
+                                        dress.instanceId,
+                                        pidx,
+                                      )
+                                    }
+                                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                                  >
+                                    ✕
+                                  </button>
+                                  <span className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-1 rounded-full">
+                                    {pidx + 1}
+                                  </span>
+                                </div>
+                              ),
+                            )}
+                            {(dressRefImages[dress.instanceId]?.length || 0) <
+                              3 && (
+                              <div
+                                className="w-20 h-20 border-2 border-dashed border-purple-200 rounded-lg flex items-center justify-center cursor-pointer hover:border-purple-300 transition-all text-purple-300"
+                                onClick={() =>
+                                  refInputRefs.current[
+                                    dress.instanceId
+                                  ]?.click()
+                                }
+                              >
+                                <span className="text-2xl">+</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
-
-              {/* ── Reference Images Section ── */}
-              <div className="bg-purple-50 p-4 rounded-xl border border-purple-200">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h4 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
-                      <FiImage className="text-purple-500" /> Reference Images
-                    </h4>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Optional · Up to 3 images · Visible to tailor and customer
-                    </p>
-                  </div>
-                  {referenceImages.length < 3 && (
-                    <button
-                      onClick={() => refInputRef.current?.click()}
-                      className="btn btn-sm bg-purple-500 text-white hover:bg-purple-600 border-none font-semibold flex items-center gap-1"
-                    >
-                      + Add Image
-                    </button>
-                  )}
-                  <input
-                    ref={refInputRef}
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                    multiple
-                    className="hidden"
-                    onChange={handleRefImageAdd}
-                  />
-                </div>
-
-                {referenceImages.length === 0 ? (
-                  <div
-                    className="border-2 border-dashed border-purple-300 rounded-xl p-8 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-100/50 transition-all"
-                    onClick={() => refInputRef.current?.click()}
-                  >
-                    <FiImage className="mx-auto text-4xl text-purple-300 mb-2" />
-                    <p className="text-sm text-gray-500">
-                      Click to add reference images
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Design inspiration, style references, or customer's images
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex gap-3 flex-wrap">
-                    {refPreviews.map((preview, idx) => (
-                      <div key={idx} className="relative group">
-                        <img
-                          src={preview}
-                          alt={`Reference ${idx + 1}`}
-                          className="w-28 h-28 object-cover rounded-xl border-2 border-purple-200"
-                        />
-                        <button
-                          onClick={() => handleRefImageRemove(idx)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-md hover:bg-red-600 transition-colors"
-                        >
-                          <FiX className="w-3 h-3" />
-                        </button>
-                        <span className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded-full">
-                          {idx + 1}
-                        </span>
-                      </div>
-                    ))}
-                    {referenceImages.length < 3 && (
-                      <div
-                        className="w-28 h-28 border-2 border-dashed border-purple-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-purple-400 hover:bg-purple-100/50 transition-all"
-                        onClick={() => refInputRef.current?.click()}
-                      >
-                        <FiImage className="text-2xl text-purple-300 mb-1" />
-                        <span className="text-xs text-gray-400">Add more</span>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Billing Summary */}
